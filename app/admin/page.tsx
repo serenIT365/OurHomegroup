@@ -3,11 +3,11 @@ import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import MembersList from "@/components/MembersList";
 
-export default function AdminPage() {
-  const orgs = store.listOrgs();
-  const meetings = store.listMeetings("org_demo");
-  const members = store.listMembers("org_demo");
-  const attendance = store.listAttendance(undefined, "org_demo");
+export default async function AdminPage() {
+  const orgs = await store.listOrgs();
+  const meetings = await store.listMeetings("org_demo");
+  const members = await store.listMembers("org_demo");
+  const attendance = await store.listAttendance(undefined, "org_demo");
 
   const byMeeting = meetings.map((m) => {
     const records = attendance.filter((a) => a.meetingId === m.id);

@@ -1,11 +1,92 @@
 /**
- * Lightweight in-memory store for MVP.
- * Replace with Prisma + Postgres / Supabase for production.
+ * Data access. Uses Supabase when env vars are set; otherwise in-memory fallback.
  */
 import { v4 as uuid } from "uuid";
-import type { Organization, Meeting, AttendanceRecord, UserProfile, Role } from "./types";
+import type { Organization, Meeting, AttendanceRecord, UserProfile } from "./types";
+import { getSupabase, isSupabaseConfigured } from "./supabase";
 
-const orgs: Organization[] = [
+const DEFAULT_PRIVACY = {
+  hideLastName: false,
+  hideEmail: true,
+  hideAttendance: false,
+  anonymousDisplay: false,
+};
+
+function rowToMeeting(row: Record<string, unknown>): Meeting {
+  return {
+    id: row.id as string,
+    organizationId: row.organization_id as string,
+    name: row.name as string,
+    description: (row.description as string) || undefined,
+    type: (row.type as string) || undefined,
+    hostId: (row.host_id as string) || undefined,
+    provider: row.provider as Meeting["provider"],
+    livekitRoomName: row.livekit_room_name as string,
+    zoomJoinUrl: (row.zoom_join_url as string) || undefined,
+    capacity: Number(row.capacity),
+    waitingRoomEnabled: Boolean(row.waiting_room_enabled),
+    password: (row.password as string) || undefined,
+    recordingEnabled: Boolean(row.recording_enabled),
+    visibility: row.visibility as Meeting["visibility"],
+    timezone: row.timezone as string,
+    language: row.language as string,
+    startAt: row.start_at as string,
+    endAt: (row.end_at as string) || undefined,
+    recurrence: row.recurrence as Meeting["recurrence"],
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToMember(row: Record<string, unknown>): UserProfile {
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    name: row.name as string,
+    nickname: (row.nickname as string) || undefined,
+    role: row.role as UserProfile["role"],
+    organizationId: (row.organization_id as string) || undefined,
+    pronouns: (row.pronouns as string) || undefined,
+    recoveryAnniversary: (row.recovery_anniversary as string) || undefined,
+    timezone: (row.timezone as string) || undefined,
+    avatarUrl: (row.avatar_url as string) || undefined,
+    privacy: {
+      hideLastName: Boolean(row.hide_last_name),
+      hideEmail: Boolean(row.hide_email),
+      hideAttendance: Boolean(row.hide_attendance),
+      anonymousDisplay: Boolean(row.anonymous_display),
+    },
+  };
+}
+
+function rowToOrg(row: Record<string, unknown>): Organization {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    slug: row.slug as string,
+    logoUrl: (row.logo_url as string) || undefined,
+    mission: (row.mission as string) || undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToAttendance(row: Record<string, unknown>): AttendanceRecord {
+  return {
+    id: row.id as string,
+    meetingId: row.meeting_id as string,
+    organizationId: row.organization_id as string,
+    userId: row.user_id as string,
+    displayName: row.display_name as string,
+    joinedAt: row.joined_at as string,
+    leftAt: (row.left_at as string) || undefined,
+    durationSeconds: row.duration_seconds != null ? Number(row.duration_seconds) : undefined,
+    device: (row.device as string) || undefined,
+    role: row.role as AttendanceRecord["role"],
+  };
+}
+
+// ---- in-memory fallback (local only, no env) ----
+const memOrgs: Organization[] = [
   {
     id: "org_demo",
     name: "Demo Recovery Collective",
@@ -14,213 +95,307 @@ const orgs: Organization[] = [
     createdAt: new Date().toISOString(),
   },
 ];
-
-const meetings: Meeting[] = [
-  {
-    id: "mtg_womens",
-    organizationId: "org_demo",
-    name: "Women's Recovery",
-    description: "Closed women's peer support meeting.",
-    type: "Women's Recovery",
-    provider: "hybrid",
-    livekitRoomName: "ohg-demo-womens",
-    capacity: 40,
-    waitingRoomEnabled: true,
-    recordingEnabled: false,
-    visibility: "private",
-    timezone: "America/New_York",
-    language: "en",
-    startAt: new Date(Date.now() + 3600_000).toISOString(),
-    recurrence: "weekly",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "mtg_veterans",
-    organizationId: "org_demo",
-    name: "Veterans Support",
-    description: "Open discussion for veterans in recovery.",
-    type: "Veterans",
-    provider: "livekit",
-    livekitRoomName: "ohg-demo-veterans",
-    capacity: 50,
-    waitingRoomEnabled: true,
-    recordingEnabled: false,
-    visibility: "public",
-    timezone: "America/New_York",
-    language: "en",
-    startAt: new Date(Date.now() + 7200_000).toISOString(),
-    recurrence: "weekly",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const members: UserProfile[] = [
-  {
-    id: "user_alex",
-    email: "alex@example.com",
-    name: "Alex Rivera",
-    nickname: "Alex",
-    role: "member",
-    organizationId: "org_demo",
-    pronouns: "they/them",
-    timezone: "America/New_York",
-    privacy: {
-      hideLastName: false,
-      hideEmail: true,
-      hideAttendance: false,
-      anonymousDisplay: false,
-    },
-  },
-  {
-    id: "user_jordan",
-    email: "jordan@example.com",
-    name: "Jordan Lee",
-    nickname: "Jordan",
-    role: "moderator",
-    organizationId: "org_demo",
-    pronouns: "she/her",
-    recoveryAnniversary: "2024-03-15",
-    timezone: "America/New_York",
-    privacy: {
-      hideLastName: true,
-      hideEmail: true,
-      hideAttendance: false,
-      anonymousDisplay: false,
-    },
-  },
-  {
-    id: "user_sam",
-    email: "sam@example.com",
-    name: "Sam Okonkwo",
-    nickname: "Sam",
-    role: "admin",
-    organizationId: "org_demo",
-    timezone: "America/Chicago",
-    privacy: {
-      hideLastName: false,
-      hideEmail: true,
-      hideAttendance: true,
-      anonymousDisplay: false,
-    },
-  },
-  {
-    id: "user_taylor",
-    email: "taylor@example.com",
-    name: "Taylor Kim",
-    nickname: "T",
-    role: "member",
-    organizationId: "org_demo",
-    pronouns: "he/him",
-    privacy: {
-      hideLastName: true,
-      hideEmail: true,
-      hideAttendance: true,
-      anonymousDisplay: true,
-    },
-  },
-];
-
-const attendance: AttendanceRecord[] = [];
+const memMeetings: Meeting[] = [];
+const memMembers: UserProfile[] = [];
+const memAttendance: AttendanceRecord[] = [];
 
 export const store = {
-  // Organizations
-  listOrgs: () => orgs,
-  getOrg: (id: string) => orgs.find((o) => o.id === id),
-  createOrg: (data: Omit<Organization, "id" | "createdAt">) => {
-    const org: Organization = {
-      ...data,
-      id: `org_${uuid().slice(0, 8)}`,
-      createdAt: new Date().toISOString(),
-    };
-    orgs.push(org);
-    return org;
+  async listOrgs(): Promise<Organization[]> {
+    if (!isSupabaseConfigured()) return memOrgs;
+    const { data, error } = await getSupabase().from("organizations").select("*");
+    if (error) throw error;
+    return (data || []).map(rowToOrg);
   },
 
-  // Meetings
-  listMeetings: (organizationId?: string) =>
-    organizationId ? meetings.filter((m) => m.organizationId === organizationId) : meetings,
-  getMeeting: (id: string) => meetings.find((m) => m.id === id),
-  createMeeting: (
-    data: Omit<Meeting, "id" | "createdAt" | "updatedAt" | "livekitRoomName"> & {
+  async getOrg(id: string): Promise<Organization | null> {
+    if (!isSupabaseConfigured()) return memOrgs.find((o) => o.id === id) || null;
+    const { data, error } = await getSupabase()
+      .from("organizations")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToOrg(data) : null;
+  },
+
+  async listMeetings(organizationId?: string): Promise<Meeting[]> {
+    if (!isSupabaseConfigured()) {
+      return organizationId
+        ? memMeetings.filter((m) => m.organizationId === organizationId)
+        : memMeetings;
+    }
+    let q = getSupabase().from("meetings").select("*").order("start_at", { ascending: true });
+    if (organizationId) q = q.eq("organization_id", organizationId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(rowToMeeting);
+  },
+
+  async getMeeting(id: string): Promise<Meeting | null> {
+    if (!isSupabaseConfigured()) return memMeetings.find((m) => m.id === id) || null;
+    const { data, error } = await getSupabase()
+      .from("meetings")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToMeeting(data) : null;
+  },
+
+  async createMeeting(
+    input: Omit<Meeting, "id" | "createdAt" | "updatedAt" | "livekitRoomName"> & {
       livekitRoomName?: string;
     }
-  ) => {
+  ): Promise<Meeting> {
     const id = `mtg_${uuid().slice(0, 8)}`;
-    const meeting: Meeting = {
-      ...data,
-      id,
-      livekitRoomName: data.livekitRoomName || `ohg-${id}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    meetings.push(meeting);
-    return meeting;
+    const livekitRoomName = input.livekitRoomName || `ohg-${id}`;
+    const now = new Date().toISOString();
+
+    if (!isSupabaseConfigured()) {
+      const meeting: Meeting = { ...input, id, livekitRoomName, createdAt: now, updatedAt: now };
+      memMeetings.push(meeting);
+      return meeting;
+    }
+
+    const { data, error } = await getSupabase()
+      .from("meetings")
+      .insert({
+        id,
+        organization_id: input.organizationId,
+        name: input.name,
+        description: input.description || null,
+        type: input.type || null,
+        host_id: input.hostId || null,
+        provider: input.provider,
+        livekit_room_name: livekitRoomName,
+        zoom_join_url: input.zoomJoinUrl || null,
+        capacity: input.capacity,
+        waiting_room_enabled: input.waitingRoomEnabled,
+        password: input.password || null,
+        recording_enabled: input.recordingEnabled,
+        visibility: input.visibility,
+        timezone: input.timezone,
+        language: input.language,
+        start_at: input.startAt,
+        end_at: input.endAt || null,
+        recurrence: input.recurrence || "none",
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return rowToMeeting(data);
   },
-  updateMeeting: (id: string, patch: Partial<Meeting>) => {
-    const idx = meetings.findIndex((m) => m.id === id);
-    if (idx === -1) return null;
-    meetings[idx] = { ...meetings[idx], ...patch, updatedAt: new Date().toISOString() };
-    return meetings[idx];
+
+  async updateMeeting(id: string, patch: Partial<Meeting>): Promise<Meeting | null> {
+    if (!isSupabaseConfigured()) {
+      const idx = memMeetings.findIndex((m) => m.id === id);
+      if (idx === -1) return null;
+      memMeetings[idx] = { ...memMeetings[idx], ...patch, updatedAt: new Date().toISOString() };
+      return memMeetings[idx];
+    }
+    const mapped: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.name !== undefined) mapped.name = patch.name;
+    if (patch.description !== undefined) mapped.description = patch.description;
+    if (patch.type !== undefined) mapped.type = patch.type;
+    if (patch.provider !== undefined) mapped.provider = patch.provider;
+    if (patch.zoomJoinUrl !== undefined) mapped.zoom_join_url = patch.zoomJoinUrl;
+    if (patch.capacity !== undefined) mapped.capacity = patch.capacity;
+    if (patch.waitingRoomEnabled !== undefined) mapped.waiting_room_enabled = patch.waitingRoomEnabled;
+    if (patch.recordingEnabled !== undefined) mapped.recording_enabled = patch.recordingEnabled;
+    if (patch.visibility !== undefined) mapped.visibility = patch.visibility;
+    if (patch.startAt !== undefined) mapped.start_at = patch.startAt;
+    if (patch.recurrence !== undefined) mapped.recurrence = patch.recurrence;
+    const { data, error } = await getSupabase()
+      .from("meetings")
+      .update(mapped)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToMeeting(data) : null;
   },
-  deleteMeeting: (id: string) => {
-    const idx = meetings.findIndex((m) => m.id === id);
-    if (idx === -1) return false;
-    meetings.splice(idx, 1);
+
+  async deleteMeeting(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured()) {
+      const idx = memMeetings.findIndex((m) => m.id === id);
+      if (idx === -1) return false;
+      memMeetings.splice(idx, 1);
+      return true;
+    }
+    const { error } = await getSupabase().from("meetings").delete().eq("id", id);
+    if (error) throw error;
     return true;
   },
 
-  // Members
-  listMembers: (organizationId?: string) =>
-    organizationId ? members.filter((m) => m.organizationId === organizationId) : members,
-  getMember: (id: string) => members.find((m) => m.id === id),
-  createMember: (data: Omit<UserProfile, "id"> & { id?: string }) => {
+  async listMembers(organizationId?: string): Promise<UserProfile[]> {
+    if (!isSupabaseConfigured()) {
+      return organizationId
+        ? memMembers.filter((m) => m.organizationId === organizationId)
+        : memMembers;
+    }
+    let q = getSupabase().from("members").select("*").order("name");
+    if (organizationId) q = q.eq("organization_id", organizationId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(rowToMember);
+  },
+
+  async getMember(id: string): Promise<UserProfile | null> {
+    if (!isSupabaseConfigured()) return memMembers.find((m) => m.id === id) || null;
+    const { data, error } = await getSupabase()
+      .from("members")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToMember(data) : null;
+  },
+
+  async createMember(data: Omit<UserProfile, "id"> & { id?: string }): Promise<UserProfile> {
     const member: UserProfile = {
       ...data,
       id: data.id || `user_${uuid().slice(0, 8)}`,
-      privacy: data.privacy || {
-        hideLastName: false,
-        hideEmail: true,
-        hideAttendance: false,
-        anonymousDisplay: false,
-      },
+      privacy: data.privacy || DEFAULT_PRIVACY,
     };
-    members.push(member);
-    return member;
-  },
-  updateMember: (id: string, patch: Partial<UserProfile>) => {
-    const idx = members.findIndex((m) => m.id === id);
-    if (idx === -1) return null;
-    members[idx] = { ...members[idx], ...patch };
-    return members[idx];
+    if (!isSupabaseConfigured()) {
+      memMembers.push(member);
+      return member;
+    }
+    const { data: row, error } = await getSupabase()
+      .from("members")
+      .insert({
+        id: member.id,
+        email: member.email,
+        name: member.name,
+        nickname: member.nickname || null,
+        role: member.role,
+        organization_id: member.organizationId || null,
+        pronouns: member.pronouns || null,
+        recovery_anniversary: member.recoveryAnniversary || null,
+        timezone: member.timezone || null,
+        avatar_url: member.avatarUrl || null,
+        hide_last_name: member.privacy.hideLastName,
+        hide_email: member.privacy.hideEmail,
+        hide_attendance: member.privacy.hideAttendance,
+        anonymous_display: member.privacy.anonymousDisplay,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return rowToMember(row);
   },
 
-  // Attendance
-  listAttendance: (meetingId?: string, organizationId?: string) => {
-    let list = attendance;
-    if (meetingId) list = list.filter((a) => a.meetingId === meetingId);
-    if (organizationId) list = list.filter((a) => a.organizationId === organizationId);
-    return list;
+  async upsertClerkMember(input: {
+    id: string;
+    email: string;
+    name: string;
+    organizationId?: string;
+  }): Promise<UserProfile> {
+    const existing = await this.getMember(input.id);
+    if (existing) return existing;
+    return this.createMember({
+      id: input.id,
+      email: input.email,
+      name: input.name,
+      role: "member",
+      organizationId: input.organizationId || "org_demo",
+      privacy: DEFAULT_PRIVACY,
+    });
   },
-  recordJoin: (data: Omit<AttendanceRecord, "id" | "joinedAt">) => {
+
+  async updateMemberRole(id: string, role: UserProfile["role"]): Promise<UserProfile | null> {
+    if (!isSupabaseConfigured()) {
+      const idx = memMembers.findIndex((m) => m.id === id);
+      if (idx === -1) return null;
+      memMembers[idx] = { ...memMembers[idx], role };
+      return memMembers[idx];
+    }
+    const { data, error } = await getSupabase()
+      .from("members")
+      .update({ role })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToMember(data) : null;
+  },
+
+  async listAttendance(meetingId?: string, organizationId?: string): Promise<AttendanceRecord[]> {
+    if (!isSupabaseConfigured()) {
+      let list = memAttendance;
+      if (meetingId) list = list.filter((a) => a.meetingId === meetingId);
+      if (organizationId) list = list.filter((a) => a.organizationId === organizationId);
+      return list;
+    }
+    let q = getSupabase().from("attendance").select("*").order("joined_at", { ascending: false });
+    if (meetingId) q = q.eq("meeting_id", meetingId);
+    if (organizationId) q = q.eq("organization_id", organizationId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(rowToAttendance);
+  },
+
+  async recordJoin(data: Omit<AttendanceRecord, "id" | "joinedAt">): Promise<AttendanceRecord> {
     const record: AttendanceRecord = {
       ...data,
       id: `att_${uuid().slice(0, 8)}`,
       joinedAt: new Date().toISOString(),
     };
-    attendance.push(record);
-    return record;
+    if (!isSupabaseConfigured()) {
+      memAttendance.push(record);
+      return record;
+    }
+    const { data: row, error } = await getSupabase()
+      .from("attendance")
+      .insert({
+        id: record.id,
+        meeting_id: record.meetingId,
+        organization_id: record.organizationId,
+        user_id: record.userId,
+        display_name: record.displayName,
+        joined_at: record.joinedAt,
+        device: record.device || null,
+        role: record.role,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return rowToAttendance(row);
   },
-  recordLeave: (userId: string, meetingId: string) => {
-    const rec = [...attendance]
-      .reverse()
-      .find((a) => a.userId === userId && a.meetingId === meetingId && !a.leftAt);
-    if (!rec) return null;
-    rec.leftAt = new Date().toISOString();
-    rec.durationSeconds = Math.round(
-      (new Date(rec.leftAt).getTime() - new Date(rec.joinedAt).getTime()) / 1000
+
+  async recordLeave(userId: string, meetingId: string): Promise<AttendanceRecord | null> {
+    if (!isSupabaseConfigured()) {
+      const rec = [...memAttendance]
+        .reverse()
+        .find((a) => a.userId === userId && a.meetingId === meetingId && !a.leftAt);
+      if (!rec) return null;
+      rec.leftAt = new Date().toISOString();
+      rec.durationSeconds = Math.round(
+        (new Date(rec.leftAt).getTime() - new Date(rec.joinedAt).getTime()) / 1000
+      );
+      return rec;
+    }
+    const { data: open } = await getSupabase()
+      .from("attendance")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("meeting_id", meetingId)
+      .is("left_at", null)
+      .order("joined_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!open) return null;
+    const leftAt = new Date().toISOString();
+    const durationSeconds = Math.round(
+      (new Date(leftAt).getTime() - new Date(open.joined_at).getTime()) / 1000
     );
-    return rec;
+    const { data, error } = await getSupabase()
+      .from("attendance")
+      .update({ left_at: leftAt, duration_seconds: durationSeconds })
+      .eq("id", open.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return rowToAttendance(data);
   },
 };

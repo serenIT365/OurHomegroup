@@ -4,8 +4,17 @@ import { store } from "@/lib/store";
 
 export default async function DashboardPage() {
   const user = await currentUser();
-  const meetings = store.listMeetings("org_demo");
-  const attendance = store.listAttendance(undefined, "org_demo");
+  if (user) {
+    await store.upsertClerkMember({
+      id: user.id,
+      email: user.emailAddresses[0]?.emailAddress || "",
+      name: user.fullName || user.firstName || "Member",
+      organizationId: "org_demo",
+    });
+  }
+
+  const meetings = await store.listMeetings("org_demo");
+  const attendance = await store.listAttendance(undefined, "org_demo");
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -18,18 +27,14 @@ export default async function DashboardPage() {
             <span className="font-semibold">OurHomegroup</span>
           </Link>
           <nav className="flex gap-6 text-sm items-center">
-            <Link href="/meetings" className="hover:text-teal-600">
-              Meetings
-            </Link>
-            <Link href="/admin" className="hover:text-teal-600">
-              Admin
-            </Link>
+            <Link href="/meetings" className="hover:text-teal-600">Meetings</Link>
+            <Link href="/admin" className="hover:text-teal-600">Admin</Link>
             {user ? (
-              <span className="text-zinc-500">{user.firstName || user.emailAddresses[0]?.emailAddress}</span>
+              <span className="text-zinc-500">
+                {user.firstName || user.emailAddresses[0]?.emailAddress}
+              </span>
             ) : (
-              <Link href="/sign-in" className="text-teal-600">
-                Sign in
-              </Link>
+              <Link href="/sign-in" className="text-teal-600">Sign in</Link>
             )}
           </nav>
         </div>
@@ -50,12 +55,11 @@ export default async function DashboardPage() {
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border p-6">
             <div className="text-sm text-teal-600 font-medium">Attendance</div>
             <div className="text-3xl font-semibold mt-1">{attendance.length}</div>
-            <div className="text-sm text-zinc-500">Recorded joins (demo org)</div>
+            <div className="text-sm text-zinc-500">Recorded joins</div>
           </div>
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border p-6">
             <div className="text-sm text-teal-600 font-medium">Organization</div>
             <div className="text-xl font-semibold mt-1">Demo Recovery Collective</div>
-            <div className="text-sm text-zinc-500">Multi-tenant scaffold active</div>
           </div>
         </div>
 

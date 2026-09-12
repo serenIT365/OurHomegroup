@@ -1,6 +1,7 @@
 "use client";
 
 import type { UserProfile, Role } from "@/lib/types";
+import MemberRoleSelect from "@/components/MemberRoleSelect";
 
 const roleStyles: Record<Role, string> = {
   visitor: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
@@ -38,6 +39,7 @@ export default function MembersList({ members }: { members: UserProfile[] }) {
             <th className="px-4 py-3 font-medium">Email</th>
             <th className="px-4 py-3 font-medium">Pronouns</th>
             <th className="px-4 py-3 font-medium">Privacy</th>
+            <th className="px-4 py-3 font-medium">Manage</th>
           </tr>
         </thead>
         <tbody>
@@ -82,6 +84,9 @@ export default function MembersList({ members }: { members: UserProfile[] }) {
                     </span>
                   )}
                 </div>
+              </td>
+              <td className="px-4 py-3">
+                <MemberRoleSelect memberId={m.id} current={m.role} />
               </td>
             </tr>
           ))}
