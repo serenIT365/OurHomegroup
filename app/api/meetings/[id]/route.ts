@@ -7,12 +7,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const meeting = store.getMeeting(id);
+  const meeting = await store.getMeeting(id);
   if (!meeting) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const format = req.nextUrl.searchParams.get("format");
   if (format === "ics") {
-    const org = store.getOrg(meeting.organizationId);
+    const org = await store.getOrg(meeting.organizationId);
     const ics = meetingToICS(meeting, org?.name);
     return new NextResponse(ics, {
       headers: {
@@ -21,7 +21,6 @@ export async function GET(
       },
     });
   }
-
   return NextResponse.json({ meeting });
 }
 
@@ -31,7 +30,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const updated = store.updateMeeting(id, body);
+  const updated = await store.updateMeeting(id, body);
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ meeting: updated });
 }
@@ -41,7 +40,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const ok = store.deleteMeeting(id);
+  const ok = await store.deleteMeeting(id);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ success: true });
 }

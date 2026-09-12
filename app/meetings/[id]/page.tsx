@@ -11,12 +11,13 @@ export default async function MeetingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const meeting = store.getMeeting(id);
+  const meeting = await store.getMeeting(id);
   if (!meeting) notFound();
 
   const user = await currentUser();
-  // Demo role resolution – in production read from Clerk publicMetadata or your DB
-  const role: Role = (user?.publicMetadata?.role as Role) || "member";
+  const profile = user ? await store.getMember(user.id) : null;
+  const role: Role =
+    profile?.role || (user?.publicMetadata?.role as Role) || "member";
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">

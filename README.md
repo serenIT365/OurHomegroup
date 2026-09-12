@@ -63,3 +63,20 @@ Swap to Prisma + Postgres (with RLS) for production multi-tenancy.
 - **Members list** with role badges and privacy-aware display (anonymous / hide email / hide last name)
 - Seed members for Demo Recovery Collective
 - `/api/members` list + create endpoints
+
+## v0.4.0 — Supabase persistence
+
+Meetings, members, and attendance persist when Supabase env vars are set.
+
+1. Create a project at https://supabase.com
+2. SQL Editor → paste `supabase/schema.sql` → Run
+3. Settings → API: copy Project URL, anon key, service_role key
+4. Add to `.env.local` and Vercel env (all environments):
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+   - SUPABASE_SERVICE_ROLE_KEY
+5. Redeploy
+
+Signed-in Clerk users are upserted into `members` on Dashboard visit.
+Admins change roles from `/admin` (saved in Supabase).
+Login/disable still happens in the Clerk Users dashboard.

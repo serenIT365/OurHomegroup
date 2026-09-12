@@ -1,19 +1,15 @@
 import Link from "next/link";
 import { store } from "@/lib/store";
 
-export default function MeetingsListPage() {
-  const meetings = store.listMeetings("org_demo");
+export default async function MeetingsListPage() {
+  const meetings = await store.listMeetings("org_demo");
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b bg-white dark:bg-zinc-900">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="font-semibold tracking-tight">
-            OurHomegroup
-          </Link>
-          <Link href="/dashboard" className="text-sm hover:text-teal-600">
-            Dashboard
-          </Link>
+          <Link href="/" className="font-semibold tracking-tight">OurHomegroup</Link>
+          <Link href="/dashboard" className="text-sm hover:text-teal-600">Dashboard</Link>
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-6 py-10">
@@ -34,6 +30,9 @@ export default function MeetingsListPage() {
               </div>
             </Link>
           ))}
+          {meetings.length === 0 && (
+            <p className="text-zinc-500">No meetings yet. Create one in Admin.</p>
+          )}
         </div>
       </main>
     </div>
