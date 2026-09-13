@@ -8,8 +8,10 @@ import {
   useLocalParticipant,
   useParticipants,
   useTracks,
+  useRoomContext,
+  isTrackReference,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { RoomEvent, Track } from "livekit-client";
 import "@livekit/components-styles";
 import { fetchLiveKitToken } from "@/lib/livekit";
 import type { Meeting, Role } from "@/lib/types";
@@ -138,22 +140,52 @@ export default function MeetingRoom({
     []
   );
 
-  if (provider === "zoom" && showZoom) {
+  const zoomUrl = meeting.zoomJoinUrl || createZoomFallbackLink(meeting.name).joinUrl;
+  const useZoomShell = meeting.provider === "zoom" || provider === "zoom";
+
+  if (useZoomShell && !joined) {
     return (
-      <div className="rounded-3xl border border-zinc-700 bg-zinc-900 text-white p-10 text-center">
-        <p className="mb-4">Zoom fallback for this hybrid meeting.</p>
-        <button
-          onClick={() =>
-            window.open(
-              meeting.zoomJoinUrl || createZoomFallbackLink(meeting.name).joinUrl,
-              "_blank"
-            )
-          }
-          className="bg-blue-600 px-6 py-3 rounded-2xl"
-        >
-          Open in Zoom
-        </button>
+      <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white">
+        <TopBar meeting={meeting} nowLabel={nowLabel} count={0} showZoom={true} />
+        <div className="flex flex-col items-center justify-center min-h-[420px] gap-4 p-10">
+          <p className="text-sm text-blue-300">
+            {isChairperson ? "Chairperson lobby · Zoom" : "Attendee lobby · Zoom"}
+          </p>
+          <h3 className="text-2xl font-semibold">{meeting.name}</h3>
+          <p className="text-sm text-zinc-400 text-center max-w-md">
+            Same room layout as LiveKit. Camera and mic stay off until you enable them.
+            Zoom audio/video for the group session uses your Zoom join link inside this shell.
+          </p>
+          {error && <p className="text-amber-300 text-sm">{error}</p>}
+          <button
+            onClick={async () => {
+              setJoined(true);
+              await recordJoin();
+            }}
+            className="bg-teal-600 hover:bg-teal-500 px-8 py-3 rounded-2xl font-medium"
+          >
+            {isChairperson ? "Start Zoom meeting as Chairperson" : "Join Zoom meeting"}
+          </button>
+        </div>
       </div>
+    );
+  }
+
+  if (useZoomShell && joined) {
+    return (
+      <LocalSession
+        meeting={meeting}
+        isChairperson={isChairperson}
+        displayName={displayName}
+        userIdentity={userIdentity}
+        nowLabel={nowLabel}
+        showZoom={true}
+        onLeave={() => {
+          setJoined(false);
+          recordLeave();
+        }}
+        zoomJoinUrl={zoomUrl}
+      />
     );
   }
 
@@ -226,20 +258,43 @@ export default function MeetingRoom({
 }
 
 function LiveKitSession(props: SessionProps) {
+  const room = useRoomContext();
   const { localParticipant, isCameraEnabled, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
-  const camTracks = useTracks(
-    [{ source: Track.Source.Camera, withPlaceholder: false }],
-    { onlySubscribed: false }
-  );
+  const camTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
   const shareTracks = useTracks(
-    [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
+    [Track.Source.ScreenShare, Track.Source.ScreenShareAudio],
     { onlySubscribed: false }
   );
+  const [localShare, setLocalShare] = useState<MediaStream | null>(null);
+  const [remoteQueue, setRemoteQueue] = useState<QueuePerson[]>([]);
 
+  const chairId = props.meeting.chairId || props.meeting.hostId || "";
   const localCam = camTracks.find((t) => t.participant.identity === localParticipant.identity);
-  const shareTrack = shareTracks.find((t) => t.publication?.track) || shareTracks[0];
-  const sharing = shareTracks.some((t) => t.publication && !t.publication.isMuted);
+  const chairCam = camTracks.find((t) => t.participant.identity === chairId);
+  const shareVideo = shareTracks.find((t) => t.source === Track.Source.ScreenShare);
+  const sharing = Boolean(localShare) || shareTracks.some((t) => t.publication && !t.publication.isMuted);
+
+  useEffect(() => {
+    const onData = (payload: Uint8Array) => {
+      try {
+        const msg = JSON.parse(new TextDecoder().decode(payload));
+        if (msg.type === "share-queue") setRemoteQueue(msg.queue || []);
+      } catch {
+        /* ignore */
+      }
+    };
+    room.on(RoomEvent.DataReceived, onData);
+    return () => {
+      room.off(RoomEvent.DataReceived, onData);
+    };
+  }, [room]);
+
+  async function publishQueue(queue: QueuePerson[]) {
+    setRemoteQueue(queue);
+    const bytes = new TextEncoder().encode(JSON.stringify({ type: "share-queue", queue }));
+    await room.localParticipant.publishData(bytes, { reliable: true });
+  }
 
   async function toggleCam() {
     await localParticipant.setCameraEnabled(!isCameraEnabled);
@@ -248,22 +303,66 @@ function LiveKitSession(props: SessionProps) {
     await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
   }
   async function toggleShare() {
-    const next = !localParticipant.isScreenShareEnabled;
-    await localParticipant.setScreenShareEnabled(next, { audio: true });
+    if (localShare || localParticipant.isScreenShareEnabled) {
+      localShare?.getTracks().forEach((tr) => tr.stop());
+      setLocalShare(null);
+      try {
+        await localParticipant.setScreenShareEnabled(false);
+      } catch {
+        /* already off */
+      }
+      return;
+    }
+    const media = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    });
+    media.getVideoTracks()[0]?.addEventListener("ended", () => {
+      setLocalShare(null);
+      localParticipant.setScreenShareEnabled(false).catch(() => undefined);
+    });
+    setLocalShare(media);
+    const vt = media.getVideoTracks()[0];
+    const at = media.getAudioTracks()[0];
+    if (vt) {
+      await localParticipant.publishTrack(vt, { source: Track.Source.ScreenShare });
+    }
+    if (at) {
+      await localParticipant.publishTrack(at, { source: Track.Source.ScreenShareAudio });
+    }
   }
 
   const others = participants.filter(
-    (p) => p.identity !== localParticipant.identity && p.identity !== props.userIdentity
+    (p) =>
+      p.identity !== localParticipant.identity &&
+      p.identity !== chairId &&
+      p.identity !== props.userIdentity
   );
 
   const videoById: Record<string, ReactNode> = {};
-  for (const t of camTracks) {
-    if (t.publication?.track) {
-      videoById[t.participant.identity] = (
-        <VideoTrack trackRef={t} className="h-full w-full object-cover" />
-      );
+  for (const tr of camTracks) {
+    if (tr.publication) {
+      if (isTrackReference(tr)) {
+        videoById[tr.participant.identity] = (
+          <VideoTrack trackRef={tr} className="h-full w-full object-cover" />
+        );
+      }
     }
   }
+
+  const chairTile =
+    (chairCam && isTrackReference(chairCam) && (
+      <VideoTrack trackRef={chairCam} className="h-full w-full object-cover" />
+    )) ||
+    (props.isChairperson && isCameraEnabled && localCam && isTrackReference(localCam) ? (
+      <VideoTrack trackRef={localCam} className="h-full w-full object-cover" />
+    ) : null);
+
+  const shareTile = localShare ? (
+    <LocalPreview stream={localShare} muted={false} />
+  ) : shareVideo && isTrackReference(shareVideo) ? (
+    <VideoTrack trackRef={shareVideo} className="min-w-full min-h-full object-contain bg-black" />
+  ) : null;
 
   return (
     <MeetingChrome
@@ -274,23 +373,12 @@ function LiveKitSession(props: SessionProps) {
       onToggleMic={toggleMic}
       onShareContent={toggleShare}
       contentActive={sharing}
-      screenShareTile={
-        shareTrack ? (
-          <VideoTrack
-            trackRef={shareTrack}
-            className="min-w-full min-h-full object-contain bg-black"
-          />
-        ) : null
-      }
-      cameraTile={
-        isCameraEnabled && localCam?.publication?.track ? (
-          <VideoTrack trackRef={localCam} className="h-full w-full object-cover" />
-        ) : null
-      }
+      screenShareTile={shareTile}
+      cameraTile={chairTile}
       videoById={videoById}
-      liveAttendees={others
-        .filter((p) => p.identity !== (props.meeting.chairId || props.meeting.hostId))
-        .map((p) => ({
+      syncedQueue={remoteQueue}
+      onQueueChange={publishQueue}
+      liveAttendees={others.map((p) => ({
         id: p.identity,
         name: p.name || p.identity,
         initials: initials(p.name || p.identity),
@@ -415,6 +503,7 @@ type SessionProps = {
   nowLabel: string;
   showZoom: boolean;
   onLeave: () => void;
+  zoomJoinUrl?: string;
 };
 
 function MeetingChrome({
@@ -424,6 +513,7 @@ function MeetingChrome({
   userIdentity,
   nowLabel,
   onLeave,
+  zoomJoinUrl,
   cameraOn,
   micOn,
   onToggleCam,
@@ -434,6 +524,8 @@ function MeetingChrome({
   screenShareTile,
   contentActive,
   videoById = {},
+  syncedQueue,
+  onQueueChange,
 }: SessionProps & {
   cameraOn: boolean;
   micOn: boolean;
@@ -445,6 +537,8 @@ function MeetingChrome({
   screenShareTile?: ReactNode;
   contentActive?: boolean;
   videoById?: Record<string, ReactNode>;
+  syncedQueue?: QueuePerson[];
+  onQueueChange?: (q: QueuePerson[]) => void;
 }) {
   const [queue, setQueue] = useState<QueuePerson[]>([]);
   const [stageId, setStageId] = useState<string | null>(null);
@@ -455,6 +549,15 @@ function MeetingChrome({
     if (contentActive) setContentOpen(true);
     if (contentActive === false) setContentOpen(false);
   }, [contentActive]);
+
+  useEffect(() => {
+    if (syncedQueue) setQueue(syncedQueue);
+  }, [syncedQueue]);
+
+  function commitQueue(next: QueuePerson[]) {
+    setQueue(next);
+    onQueueChange?.(next);
+  }
 
   const requesting = queue.filter((p) => p.requesting && !p.onStage);
   const onStage = queue.filter((p) => p.onStage);
@@ -467,32 +570,29 @@ function MeetingChrome({
   const speaker = onStage.find((p) => p.id === stageId) || onStage[0];
 
   function requestShare() {
-    setQueue((prev) => {
-      if (prev.some((p) => p.id === userIdentity)) {
-        return prev.map((p) => (p.id === userIdentity ? { ...p, requesting: true } : p));
-      }
-      return [
-        ...prev,
-        {
-          id: userIdentity,
-          name: displayName,
-          initials: initials(displayName),
-          onStage: false,
-          requesting: true,
-        },
-      ];
-    });
+    commitQueue(
+      queue.some((p) => p.id === userIdentity)
+        ? queue.map((p) => (p.id === userIdentity ? { ...p, requesting: true } : p))
+        : [
+            ...queue,
+            {
+              id: userIdentity,
+              name: displayName,
+              initials: initials(displayName),
+              onStage: false,
+              requesting: true,
+            },
+          ]
+    );
   }
 
   function promote(id: string) {
-    setQueue((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, onStage: true, requesting: false } : p))
-    );
+    commitQueue(queue.map((p) => (p.id === id ? { ...p, onStage: true, requesting: false } : p)));
     setStageId(id);
   }
 
   function removeFromStage(id: string) {
-    setQueue((prev) => prev.map((p) => (p.id === id ? { ...p, onStage: false } : p)));
+    commitQueue(queue.map((p) => (p.id === id ? { ...p, onStage: false } : p)));
     setStageId((cur) => (cur === id ? null : cur));
   }
 
@@ -607,6 +707,32 @@ function MeetingChrome({
               </button>
             )}
           </div>
+          {zoomJoinUrl && (
+            <div className="rounded-2xl border border-blue-500/30 bg-[#0b1724] p-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-200">Zoom session</span>
+                <a
+                  href={zoomJoinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs px-3 py-1 rounded-lg bg-blue-600"
+                >
+                  Open Zoom
+                </a>
+              </div>
+              <div className="h-48 rounded-xl overflow-hidden bg-black/40 border border-white/10">
+                <iframe
+                  title="Zoom meeting"
+                  src={zoomJoinUrl}
+                  className="w-full h-full"
+                  allow="camera; microphone; display-capture; autoplay; fullscreen"
+                />
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                If Zoom blocks embedding, use Open Zoom. Chair/stage controls in this shell still apply.
+              </p>
+            </div>
+          )}
           </div>
 
           {isChairperson && (
