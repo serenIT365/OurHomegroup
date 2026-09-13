@@ -228,9 +228,18 @@ export default function MeetingRoom({
 function LiveKitSession(props: SessionProps) {
   const { localParticipant, isCameraEnabled, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
-  const camTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
+  const camTracks = useTracks(
+    [{ source: Track.Source.Camera, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
+  const shareTracks = useTracks(
+    [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
+    { onlySubscribed: false }
+  );
 
   const localCam = camTracks.find((t) => t.participant.identity === localParticipant.identity);
+  const shareTrack = shareTracks.find((t) => t.publication?.track) || shareTracks[0];
+  const sharing = shareTracks.some((t) => t.publication && !t.publication.isMuted);
 
   async function toggleCam() {
     await localParticipant.setCameraEnabled(!isCameraEnabled);
@@ -244,6 +253,15 @@ function LiveKitSession(props: SessionProps) {
 
   const others = participants.filter((p) => p.identity !== localParticipant.identity);
 
+  const videoById: Record<string, ReactNode> = {};
+  for (const t of camTracks) {
+    if (t.publication?.track) {
+      videoById[t.participant.identity] = (
+        <VideoTrack trackRef={t} className="h-full w-full object-cover" />
+      );
+    }
+  }
+
   return (
     <MeetingChrome
       {...props}
@@ -252,11 +270,18 @@ function LiveKitSession(props: SessionProps) {
       onToggleCam={toggleCam}
       onToggleMic={toggleMic}
       onShareContent={toggleShare}
+      contentActive={sharing}
+      screenShareTile={
+        shareTrack?.publication?.track ? (
+          <VideoTrack trackRef={shareTrack} className="h-full w-full object-contain bg-black" />
+        ) : null
+      }
       cameraTile={
-        isCameraEnabled && localCam ? (
+        isCameraEnabled && localCam?.publication?.track ? (
           <VideoTrack trackRef={localCam} className="h-full w-full object-cover" />
         ) : null
       }
+      videoById={videoById}
       liveAttendees={others.map((p) => ({
         id: p.identity,
         name: p.name || p.identity,
@@ -272,12 +297,14 @@ function LocalSession(props: SessionProps) {
   const [cameraOn, setCameraOn] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [shareStream, setShareStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
     return () => {
-      stream?.getTracks().forEach((t) => t.stop());
+      stream?.getTracks().forEach((tr) => tr.stop());
+      shareStream?.getTracks().forEach((tr) => tr.stop());
     };
-  }, [stream]);
+  }, [stream, shareStream]);
 
   async function toggleCam() {
     if (cameraOn) {
@@ -312,6 +339,21 @@ function LocalSession(props: SessionProps) {
     }
   }
 
+  async function toggleShare() {
+    if (shareStream) {
+      shareStream.getTracks().forEach((tr) => tr.stop());
+      setShareStream(null);
+      return;
+    }
+    try {
+      const media = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      media.getVideoTracks()[0]?.addEventListener("ended", () => setShareStream(null));
+      setShareStream(media);
+    } catch {
+      /* cancelled */
+    }
+  }
+
   return (
     <MeetingChrome
       {...props}
@@ -319,8 +361,11 @@ function LocalSession(props: SessionProps) {
       micOn={micOn}
       onToggleCam={toggleCam}
       onToggleMic={toggleMic}
-      onShareContent={() => {}}
+      onShareContent={toggleShare}
+      contentActive={Boolean(shareStream)}
+      screenShareTile={shareStream ? <LocalPreview stream={shareStream} /> : null}
       cameraTile={cameraOn && stream ? <LocalPreview stream={stream} /> : null}
+      videoById={{}}
       liveAttendees={[]}
     />
   );
@@ -364,6 +409,9 @@ function MeetingChrome({
   onShareContent,
   cameraTile,
   liveAttendees,
+  screenShareTile,
+  contentActive,
+  videoById = {},
 }: SessionProps & {
   cameraOn: boolean;
   micOn: boolean;
@@ -372,11 +420,19 @@ function MeetingChrome({
   onShareContent?: () => void;
   cameraTile: ReactNode;
   liveAttendees: QueuePerson[];
+  screenShareTile?: ReactNode;
+  contentActive?: boolean;
+  videoById?: Record<string, ReactNode>;
 }) {
   const [queue, setQueue] = useState<QueuePerson[]>([]);
   const [stageId, setStageId] = useState<string | null>(null);
   const [contentOpen, setContentOpen] = useState(false);
   const [contentCollapsed, setContentCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (contentActive) setContentOpen(true);
+    if (contentActive === false) setContentOpen(false);
+  }, [contentActive]);
 
   const requesting = queue.filter((p) => p.requesting && !p.onStage);
   const onStage = queue.filter((p) => p.onStage);
@@ -473,8 +529,12 @@ function MeetingChrome({
                         </button>
                       )}
                     </div>
-                    <div className="flex-1 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center text-zinc-400 text-sm">
-                      Content display — screen, slide, or document shared by the chairperson
+                    <div className="flex-1 rounded-2xl bg-black border border-white/10 overflow-hidden min-h-[280px]">
+                      {screenShareTile || (
+                        <div className="h-full flex items-center justify-center text-zinc-400 text-sm p-6 text-center">
+                          Waiting for shared content…
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -497,8 +557,14 @@ function MeetingChrome({
             <div className="absolute top-3 left-3 text-xs bg-black/50 px-2 py-1 rounded-full">
               Currently Speaking
             </div>
-            <div className="h-[260px] flex items-center justify-center text-lg">
-              {speaker ? speaker.name : "Waiting for a share…"}
+            <div className="h-[260px] flex items-center justify-center text-lg relative overflow-hidden">
+              {speaker && videoById[speaker.id] ? (
+                <div className="absolute inset-0">{videoById[speaker.id]}</div>
+              ) : speaker ? (
+                speaker.name
+              ) : (
+                "Waiting for a share…"
+              )}
             </div>
             {isChairperson && speaker && (
               <button
@@ -582,13 +648,17 @@ function MeetingChrome({
             {attendees.length === 0 ? (
               <p className="text-xs text-zinc-500">No other attendees yet.</p>
             ) : (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-2 text-xs">
                 {attendees.map((p) => (
                   <div key={p.id} className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center">
-                      {p.initials[0]}
-                    </span>
-                    {p.name}
+                    <div className="w-14 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                      {videoById[p.id] || (
+                        <div className="h-full flex items-center justify-center text-[10px] text-zinc-500">
+                          {p.initials}
+                        </div>
+                      )}
+                    </div>
+                    <span>{p.name}</span>
                   </div>
                 ))}
               </div>
