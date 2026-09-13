@@ -3,11 +3,21 @@ import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import MembersList from "@/components/MembersList";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
-  const orgs = await store.listOrgs();
-  const meetings = await store.listMeetings("org_demo");
-  const members = await store.listMembers("org_demo");
-  const attendance = await store.listAttendance(undefined, "org_demo");
+  let orgs = [] as Awaited<ReturnType<typeof store.listOrgs>>;
+  let meetings = [] as Awaited<ReturnType<typeof store.listMeetings>>;
+  let members = [] as Awaited<ReturnType<typeof store.listMembers>>;
+  let attendance = [] as Awaited<ReturnType<typeof store.listAttendance>>;
+  try {
+    orgs = await store.listOrgs();
+    meetings = await store.listMeetings("org_demo");
+    members = await store.listMembers("org_demo");
+    attendance = await store.listAttendance(undefined, "org_demo");
+  } catch (e) {
+    console.error("[admin] store error", e);
+  }
 
   const byMeeting = meetings.map((m) => {
     const records = attendance.filter((a) => a.meetingId === m.id);

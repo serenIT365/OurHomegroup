@@ -2,6 +2,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { store } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const user = await currentUser();
   if (user) {

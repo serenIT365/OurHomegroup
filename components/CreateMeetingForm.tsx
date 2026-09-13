@@ -238,6 +238,7 @@ export default function CreateMeetingForm({
           />
         </label>
 
+        {form.provider !== "livekit" && (
         <label className="block space-y-1.5 md:col-span-2">
           <span className="text-sm font-medium">Zoom join URL (optional fallback)</span>
           <input
@@ -247,6 +248,7 @@ export default function CreateMeetingForm({
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </label>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-6 pt-1">

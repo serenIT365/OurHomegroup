@@ -1,5 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { store } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 import MeetingRoom from "@/components/MeetingRoom";
 import Link from "next/link";
 import { notFound } from "next/navigation";
