@@ -1,11 +1,14 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { store } from "@/lib/store";
-
-export const dynamic = "force-dynamic";
+import { upcomingStarts } from "@/lib/occurrences";
+import { canAssignChair } from "@/lib/roles";
 import MeetingRoom from "@/components/MeetingRoom";
+import ChairpersonAssign from "@/components/ChairpersonAssign";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Role } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export default async function MeetingDetailPage({
   params,
@@ -20,6 +23,28 @@ export default async function MeetingDetailPage({
   const profile = user ? await store.getMember(user.id) : null;
   const role: Role =
     profile?.role || (user?.publicMetadata?.role as Role) || "member";
+
+  const nextStart = upcomingStarts(meeting, 1)[0] || meeting.startAt;
+  let occurrences = [] as Awaited<ReturnType<typeof store.listOccurrences>>;
+  try {
+    occurrences = await store.listOccurrences(meeting.id);
+    if (!occurrences.some((o) => o.startAt === nextStart)) {
+      await store.upsertOccurrence({
+        meetingId: meeting.id,
+        organizationId: meeting.organizationId,
+        startAt: nextStart,
+        chairId: meeting.chairId || meeting.hostId || null,
+      });
+      occurrences = await store.listOccurrences(meeting.id);
+    }
+  } catch {
+    /* table may not exist until SQL is run */
+  }
+
+  const thisOcc = occurrences.find((o) => o.startAt === nextStart);
+  const chairId = thisOcc?.chairId || meeting.chairId || meeting.hostId;
+  const isChairperson = !!user && chairId === user.id;
+  const canEditChair = canAssignChair(role);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -36,13 +61,15 @@ export default async function MeetingDetailPage({
           </a>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {canEditChair && <ChairpersonAssign meeting={meeting} canEdit={canEditChair} />}
         <MeetingRoom
           meeting={meeting}
           userIdentity={user?.id || "anonymous-guest"}
           userName={user?.fullName || user?.firstName || "Guest"}
           role={role}
           organizationId={meeting.organizationId}
+          isChairperson={isChairperson}
         />
       </main>
     </div>

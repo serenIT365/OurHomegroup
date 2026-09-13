@@ -2,6 +2,7 @@ import { store } from "@/lib/store";
 import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import MembersList from "@/components/MembersList";
+import ChairpersonAssign from "@/components/ChairpersonAssign";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,9 @@ export default async function AdminPage() {
                   >
                     Open
                   </Link>
+                </div>
+                <div className="w-full pt-3">
+                  <ChairpersonAssign meeting={m} canEdit={true} />
                 </div>
               </div>
             ))}
