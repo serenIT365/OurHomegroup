@@ -14,6 +14,7 @@ function grantsForRole(role: Role = "member") {
   switch (role) {
     case "moderator":
     case "admin":
+    case "poweruser":
     case "superadmin":
       return {
         ...base,
