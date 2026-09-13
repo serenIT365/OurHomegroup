@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { store } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function MeetingsListPage() {
   const meetings = await store.listMeetings("org_demo");
 
