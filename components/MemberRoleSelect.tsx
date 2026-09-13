@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Role } from "@/lib/types";
 
-const ROLES: Role[] = ["member", "moderator", "admin"];
+const ROLES: Role[] = ["member", "moderator", "poweruser", "admin"];
 
 export default function MemberRoleSelect({
   memberId,

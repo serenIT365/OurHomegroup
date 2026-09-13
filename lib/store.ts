@@ -2,7 +2,7 @@
  * Data access. Uses Supabase when env vars are set; otherwise in-memory fallback.
  */
 import { v4 as uuid } from "uuid";
-import type { Organization, Meeting, AttendanceRecord, UserProfile } from "./types";
+import type { Organization, Meeting, AttendanceRecord, UserProfile, MeetingOccurrence } from "./types";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
 
 const DEFAULT_PRIVACY = {
@@ -19,7 +19,8 @@ function rowToMeeting(row: Record<string, unknown>): Meeting {
     name: row.name as string,
     description: (row.description as string) || undefined,
     type: (row.type as string) || undefined,
-    hostId: (row.host_id as string) || undefined,
+    hostId: (row.host_id as string) || (row.chair_id as string) || undefined,
+    chairId: (row.chair_id as string) || (row.host_id as string) || undefined,
     provider: row.provider as Meeting["provider"],
     livekitRoomName: row.livekit_room_name as string,
     zoomJoinUrl: (row.zoom_join_url as string) || undefined,
@@ -99,6 +100,21 @@ const memMeetings: Meeting[] = [];
 const memMembers: UserProfile[] = [];
 const memAttendance: AttendanceRecord[] = [];
 
+
+function rowToOccurrence(row: Record<string, unknown>): MeetingOccurrence {
+  return {
+    id: row.id as string,
+    meetingId: row.meeting_id as string,
+    organizationId: row.organization_id as string,
+    startAt: row.start_at as string,
+    chairId: (row.chair_id as string) || undefined,
+    createdAt: row.created_at as string,
+  };
+}
+
+const memOccurrences: MeetingOccurrence[] = [];
+
+
 export const store = {
   async listOrgs(): Promise<Organization[]> {
     if (!isSupabaseConfigured()) return memOrgs;
@@ -165,7 +181,8 @@ export const store = {
         name: input.name,
         description: input.description || null,
         type: input.type || null,
-        host_id: input.hostId || null,
+        host_id: input.hostId || input.chairId || null,
+        chair_id: input.chairId || input.hostId || null,
         provider: input.provider,
         livekit_room_name: livekitRoomName,
         zoom_join_url: input.zoomJoinUrl || null,
@@ -204,6 +221,8 @@ export const store = {
     if (patch.recordingEnabled !== undefined) mapped.recording_enabled = patch.recordingEnabled;
     if (patch.visibility !== undefined) mapped.visibility = patch.visibility;
     if (patch.startAt !== undefined) mapped.start_at = patch.startAt;
+    if (patch.chairId !== undefined) mapped.chair_id = patch.chairId;
+    if (patch.hostId !== undefined) mapped.host_id = patch.hostId;
     if (patch.recurrence !== undefined) mapped.recurrence = patch.recurrence;
     const { data, error } = await getSupabase()
       .from("meetings")
@@ -397,5 +416,74 @@ export const store = {
       .single();
     if (error) throw error;
     return rowToAttendance(data);
+  },
+
+  async listOccurrences(meetingId: string): Promise<MeetingOccurrence[]> {
+    if (!isSupabaseConfigured()) {
+      return memOccurrences.filter((o) => o.meetingId === meetingId);
+    }
+    const { data, error } = await getSupabase()
+      .from("meeting_occurrences")
+      .select("*")
+      .eq("meeting_id", meetingId)
+      .order("start_at", { ascending: true });
+    if (error) throw error;
+    return (data || []).map(rowToOccurrence);
+  },
+
+  async upsertOccurrence(input: {
+    meetingId: string;
+    organizationId: string;
+    startAt: string;
+    chairId?: string | null;
+  }): Promise<MeetingOccurrence> {
+    const id = `occ_${input.meetingId}_${new Date(input.startAt).toISOString()}`;
+    if (!isSupabaseConfigured()) {
+      const existing = memOccurrences.find((o) => o.id === id);
+      if (existing) {
+        existing.chairId = input.chairId || undefined;
+        return existing;
+      }
+      const occ: MeetingOccurrence = {
+        id,
+        meetingId: input.meetingId,
+        organizationId: input.organizationId,
+        startAt: input.startAt,
+        chairId: input.chairId || undefined,
+        createdAt: new Date().toISOString(),
+      };
+      memOccurrences.push(occ);
+      return occ;
+    }
+    const { data, error } = await getSupabase()
+      .from("meeting_occurrences")
+      .upsert({
+        id,
+        meeting_id: input.meetingId,
+        organization_id: input.organizationId,
+        start_at: input.startAt,
+        chair_id: input.chairId || null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return rowToOccurrence(data);
+  },
+
+  async setOccurrenceChair(id: string, chairId: string | null): Promise<MeetingOccurrence | null> {
+    if (!isSupabaseConfigured()) {
+      const occ = memOccurrences.find((o) => o.id === id);
+      if (!occ) return null;
+      occ.chairId = chairId || undefined;
+      return occ;
+    }
+    const { data, error } = await getSupabase()
+      .from("meeting_occurrences")
+      .update({ chair_id: chairId })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToOccurrence(data) : null;
   },
 };

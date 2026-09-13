@@ -1,4 +1,4 @@
-export type Role = "visitor" | "member" | "moderator" | "admin" | "superadmin";
+export type Role = "visitor" | "member" | "moderator" | "admin" | "poweruser" | "superadmin";
 
 export type MeetingProvider = "livekit" | "zoom" | "hybrid";
 
@@ -37,6 +37,7 @@ export interface Meeting {
   description?: string;
   type?: string; // e.g. "Women's Recovery", "Veterans"
   hostId?: string;
+  chairId?: string;
   coHostIds?: string[];
   provider: MeetingProvider;
   livekitRoomName: string;
@@ -68,4 +69,13 @@ export interface AttendanceRecord {
   durationSeconds?: number;
   device?: string;
   role: Role;
+}
+
+export interface MeetingOccurrence {
+  id: string;
+  meetingId: string;
+  organizationId: string;
+  startAt: string;
+  chairId?: string;
+  createdAt: string;
 }

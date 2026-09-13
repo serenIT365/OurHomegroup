@@ -7,6 +7,7 @@ const roleStyles: Record<Role, string> = {
   visitor: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
   member: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300",
   moderator: "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  poweruser: "bg-sky-50 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
   admin: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
   superadmin: "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
 };

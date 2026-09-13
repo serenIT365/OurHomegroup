@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { MeetingProvider } from "@/lib/types";
+import type { MeetingProvider, UserProfile } from "@/lib/types";
+import { canBeChair } from "@/lib/roles";
 
 const TIMEZONES = [
   "America/New_York",
@@ -22,6 +23,13 @@ export default function CreateMeetingForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [eligible, setEligible] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/members?organizationId=${organizationId}`)
+      .then((r) => r.json())
+      .then((d) => setEligible((d.members || []).filter((m: UserProfile) => canBeChair(m.role))));
+  }, [organizationId]);
 
   const [form, setForm] = useState({
     name: "",
@@ -37,6 +45,7 @@ export default function CreateMeetingForm({
     startAt: "",
     recurrence: "weekly" as "none" | "daily" | "weekly" | "monthly",
     zoomJoinUrl: "",
+    chairId: "",
   });
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -74,6 +83,8 @@ export default function CreateMeetingForm({
           startAt: new Date(form.startAt).toISOString(),
           recurrence: form.recurrence,
           zoomJoinUrl: form.zoomJoinUrl.trim() || undefined,
+          chairId: form.chairId || undefined,
+          hostId: form.chairId || undefined,
         }),
       });
 
@@ -154,6 +165,22 @@ export default function CreateMeetingForm({
             placeholder="Women's Recovery, Veterans, Open…"
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
+        </label>
+
+        <label className="block space-y-1.5 md:col-span-2">
+          <span className="text-sm font-medium">Chairperson</span>
+          <select
+            value={form.chairId}
+            onChange={(e) => update("chairId", e.target.value)}
+            className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="">Unassigned — only Moderator / Admin / Power User can be assigned</option>
+            {eligible.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nickname || m.name} ({m.role})
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="block space-y-1.5">
