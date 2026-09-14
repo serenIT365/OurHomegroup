@@ -26,7 +26,9 @@ export default function ZoomSdkJoin({
     if (joinedRef.current) return;
     joinedRef.current = true;
 
-    let client: { leave?: () => Promise<void> } | null = null;
+    // Zoom SDK types vary by version; keep this untyped at the boundary.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let client: any = null;
 
     (async () => {
       try {
