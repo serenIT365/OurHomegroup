@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -16,8 +16,8 @@ import "@livekit/components-styles";
 import { fetchLiveKitToken } from "@/lib/livekit";
 import type { Meeting, Role } from "@/lib/types";
 import { createZoomFallbackLink } from "@/lib/zoom";
-import ZoomSdkJoin from "@/components/ZoomSdkJoin";
 import { cn } from "@/lib/utils";
+import ZoomVideoTile from "@/components/ZoomVideoTile";
 
 interface MeetingRoomProps {
   meeting: Meeting;
@@ -61,6 +61,7 @@ export default function MeetingRoom({
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
+  const [zoomVideo, setZoomVideo] = useState(false);
 
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
   const displayName = userName || "Guest";
@@ -100,6 +101,13 @@ export default function MeetingRoom({
       /* ignore */
     }
   }, [meeting.id, userIdentity]);
+
+  async function connectZoomVideo() {
+    setError(null);
+    setZoomVideo(true);
+    setJoined(true);
+    await recordJoin();
+  }
 
   async function connectLiveKit() {
     setError(null);
@@ -141,40 +149,14 @@ export default function MeetingRoom({
     []
   );
 
-  const zoomUrl = meeting.zoomJoinUrl || createZoomFallbackLink(meeting.name).joinUrl;
-  const useZoomShell = meeting.provider === "zoom" || provider === "zoom";
+  const zoomUrl =
+    meeting.zoomJoinUrl && !meeting.zoomJoinUrl.includes("placeholder")
+      ? meeting.zoomJoinUrl
+      : undefined;
 
-  if (useZoomShell && !joined) {
+  if (zoomVideo) {
     return (
-      <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white">
-        <TopBar meeting={meeting} nowLabel={nowLabel} count={0} showZoom={true} />
-        <div className="flex flex-col items-center justify-center min-h-[420px] gap-4 p-10">
-          <p className="text-sm text-blue-300">
-            {isChairperson ? "Chairperson lobby · Zoom" : "Attendee lobby · Zoom"}
-          </p>
-          <h3 className="text-2xl font-semibold">{meeting.name}</h3>
-          <p className="text-sm text-zinc-400 text-center max-w-md">
-            Same room layout as LiveKit. Camera and mic stay off until you enable them.
-            Zoom audio/video for the group session uses your Zoom join link inside this shell.
-          </p>
-          {error && <p className="text-amber-300 text-sm">{error}</p>}
-          <button
-            onClick={async () => {
-              setJoined(true);
-              await recordJoin();
-            }}
-            className="bg-teal-600 hover:bg-teal-500 px-8 py-3 rounded-2xl font-medium"
-          >
-            {isChairperson ? "Start Zoom meeting as Chairperson" : "Join Zoom meeting"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (useZoomShell && joined) {
-    return (
-      <LocalSession
+      <ZoomVideoSession
         meeting={meeting}
         isChairperson={isChairperson}
         displayName={displayName}
@@ -182,6 +164,7 @@ export default function MeetingRoom({
         nowLabel={nowLabel}
         showZoom={true}
         onLeave={() => {
+          setZoomVideo(false);
           setJoined(false);
           recordLeave();
         }}
@@ -193,7 +176,7 @@ export default function MeetingRoom({
   if (!token) {
     return (
       <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white">
-        <TopBar meeting={meeting} nowLabel={nowLabel} count={0} showZoom={showZoom} />
+        <TopBar meeting={meeting} nowLabel={nowLabel} count={0} showZoom={showZoom} zoomJoinUrl={zoomUrl} />
         <div className="flex flex-col items-center justify-center min-h-[420px] gap-4 p-10">
           <p className="text-sm text-teal-300">
             {isChairperson ? "Chairperson lobby" : "Attendee lobby"}
@@ -204,7 +187,7 @@ export default function MeetingRoom({
           </p>
           {error && <p className="text-amber-300 text-sm">{error}</p>}
           <button
-            onClick={connectLiveKit}
+            onClick={meeting.provider === "zoom" ? connectZoomVideo : connectLiveKit}
             className="bg-teal-600 hover:bg-teal-500 px-8 py-3 rounded-2xl font-medium"
           >
             {isChairperson ? "Start meeting as Chairperson" : "Join meeting"}
@@ -240,6 +223,7 @@ export default function MeetingRoom({
           nowLabel={nowLabel}
           showZoom={showZoom}
           onLeave={leave}
+          zoomJoinUrl={zoomUrl}
         />
       </LiveKitRoom>
     );
@@ -254,6 +238,192 @@ export default function MeetingRoom({
       nowLabel={nowLabel}
       showZoom={showZoom}
       onLeave={leave}
+      zoomJoinUrl={zoomUrl}
+    />
+  );
+}
+
+
+function ZoomVideoSession(props: SessionProps) {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [micOn, setMicOn] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [shareUserId, setShareUserId] = useState<number | null>(null);
+  const clientRef = useRef<any>(null);
+  const streamRef = useRef<any>(null);
+
+  const sessionName = (props.meeting.livekitRoomName || props.meeting.id).slice(0, 200);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/zoom/video-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionName,
+            userIdentity: props.userIdentity,
+            role: props.isChairperson ? 1 : 0,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Video SDK token failed");
+
+        const ZoomVideo = (await import("@zoom/videosdk")).default;
+        const client = ZoomVideo.createClient();
+        await client.init("en-US", "Global", { patchJsMedia: true });
+        await client.join(sessionName, data.token, props.displayName || "Guest", "");
+        if (cancelled) {
+          await client.leave();
+          return;
+        }
+        const stream = client.getMediaStream();
+        clientRef.current = client;
+        streamRef.current = stream;
+
+        const refresh = () => {
+          const list = client.getAllUser?.() || [];
+          setUsers(Array.isArray(list) ? list : []);
+        };
+        client.on("user-added", refresh);
+        client.on("user-removed", refresh);
+        client.on("user-updated", refresh);
+        client.on("peer-video-state-change", refresh);
+        client.on("peer-share-state-change", (ev: any) => {
+          if (ev?.action === "Start") setShareUserId(ev.userId);
+          if (ev?.action === "Stop") setShareUserId(null);
+          refresh();
+        });
+        refresh();
+        setReady(true);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Zoom Video SDK join failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        clientRef.current?.leave?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [sessionName, props.displayName, props.userIdentity, props.isChairperson]);
+
+  async function toggleCam() {
+    const stream = streamRef.current;
+    if (!stream) return;
+    if (cameraOn) {
+      await stream.stopVideo();
+      setCameraOn(false);
+    } else {
+      await stream.startVideo();
+      setCameraOn(true);
+    }
+  }
+
+  async function toggleMic() {
+    const stream = streamRef.current;
+    if (!stream) return;
+    if (micOn) {
+      await stream.muteAudio();
+      setMicOn(false);
+    } else {
+      await stream.startAudio();
+      await stream.unmuteAudio?.();
+      setMicOn(true);
+    }
+  }
+
+  async function toggleShare() {
+    const stream = streamRef.current;
+    if (!stream) return;
+    if (sharing) {
+      await stream.stopShareScreen();
+      setSharing(false);
+      setShareUserId(null);
+    } else {
+      await stream.startShareScreen();
+      setSharing(true);
+    }
+  }
+
+  const self = users.find((u) => u.displayName === props.displayName) || users[0];
+  const chairNameHint = "Chairperson";
+  const others = users.filter((u) => u.userId !== self?.userId);
+
+  const videoById: Record<string, React.ReactNode> = {};
+  const stream = streamRef.current;
+  for (const u of users) {
+    if (u.bVideoOn && stream) {
+      videoById[String(u.userId)] = (
+        <ZoomVideoTile mediaStream={stream} userId={u.userId} />
+      );
+      videoById[u.displayName || ""] = videoById[String(u.userId)];
+    }
+  }
+
+  const host = users.find((u: any) => u.isHost) || (props.isChairperson ? self : null);
+  if (host && videoById[String(host.userId)]) {
+    const cid = props.meeting.chairId || props.meeting.hostId || "";
+    if (cid) videoById[cid] = videoById[String(host.userId)];
+  }
+  const chairTile =
+    cameraOn && self && stream ? (
+      <ZoomVideoTile mediaStream={stream} userId={self.userId} />
+    ) : null;
+
+  const shareTile =
+    shareUserId != null && stream ? (
+      <ZoomVideoTile mediaStream={stream} userId={shareUserId} kind="share" />
+    ) : null;
+
+  if (error) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white p-10 text-center space-y-3">
+        <p className="text-amber-300 text-sm">{error}</p>
+        <p className="text-xs text-zinc-400">
+          Create a Zoom Marketplace <strong>Video SDK</strong> app and set ZOOM_VIDEO_SDK_KEY / ZOOM_VIDEO_SDK_SECRET.
+          Meeting SDK keys cannot join Video SDK sessions.
+        </p>
+        <button onClick={props.onLeave} className="bg-red-600 px-4 py-2 rounded-xl text-sm">
+          Leave
+        </button>
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white p-10 text-center">
+        Connecting Zoom Video session…
+      </div>
+    );
+  }
+
+  return (
+    <MeetingChrome
+      {...props}
+      cameraOn={cameraOn}
+      micOn={micOn}
+      onToggleCam={toggleCam}
+      onToggleMic={toggleMic}
+      onShareContent={toggleShare}
+      contentActive={sharing || shareUserId != null}
+      screenShareTile={shareTile}
+      cameraTile={chairTile}
+      videoById={videoById}
+      liveAttendees={others.map((u) => ({
+        id: String(u.userId),
+        name: u.displayName || String(u.userId),
+        initials: initials(u.displayName || "U"),
+        onStage: false,
+        requesting: false,
+      }))}
     />
   );
 }
@@ -615,7 +785,7 @@ function MeetingChrome({
 
   return (
     <div className="rounded-3xl overflow-hidden border border-white/10 bg-[#0d1b2a] text-white">
-      <TopBar meeting={meeting} nowLabel={nowLabel} count={count} showZoom={false} />
+      <TopBar meeting={meeting} nowLabel={nowLabel} count={count} showZoom={showZoom} zoomJoinUrl={zoomUrl} />
 
       <div className="grid lg:grid-cols-[200px_1fr_300px] min-h-[640px]">
         <aside className="hidden lg:flex flex-col border-r border-white/10 bg-[#0b1724] p-4">
@@ -708,13 +878,6 @@ function MeetingChrome({
               </button>
             )}
           </div>
-          {zoomJoinUrl && (
-            <ZoomSdkJoin
-              joinUrl={zoomJoinUrl}
-              userName={displayName}
-              isHost={isChairperson}
-            />
-          )}
           </div>
 
           {isChairperson && (
@@ -866,11 +1029,13 @@ function TopBar({
   nowLabel,
   count,
   showZoom,
+  zoomJoinUrl,
 }: {
   meeting: Meeting;
   nowLabel: string;
   count: number;
   showZoom: boolean;
+  zoomJoinUrl?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-white/10 bg-[#0b1724]">
@@ -888,7 +1053,12 @@ function TopBar({
       <div className="flex items-center gap-3 text-sm text-zinc-400">
         <span className="hidden sm:inline">{nowLabel}</span>
         <span>👤 {count}</span>
-        {showZoom && <span className="text-xs">Hybrid</span>}
+        {showZoom && <span className="text-xs text-zinc-500">Same room</span>}
+        {zoomJoinUrl && (
+          <a href={zoomJoinUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-300 hover:underline">
+            Phone / Zoom
+          </a>
+        )}
       </div>
     </div>
   );
