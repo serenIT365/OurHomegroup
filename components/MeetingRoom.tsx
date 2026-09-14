@@ -16,6 +16,7 @@ import "@livekit/components-styles";
 import { fetchLiveKitToken } from "@/lib/livekit";
 import type { Meeting, Role } from "@/lib/types";
 import { createZoomFallbackLink } from "@/lib/zoom";
+import ZoomSdkJoin from "@/components/ZoomSdkJoin";
 import { cn } from "@/lib/utils";
 
 interface MeetingRoomProps {
@@ -708,30 +709,11 @@ function MeetingChrome({
             )}
           </div>
           {zoomJoinUrl && (
-            <div className="rounded-2xl border border-blue-500/30 bg-[#0b1724] p-3 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-blue-200">Zoom session</span>
-                <a
-                  href={zoomJoinUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs px-3 py-1 rounded-lg bg-blue-600"
-                >
-                  Open Zoom
-                </a>
-              </div>
-              <div className="h-48 rounded-xl overflow-hidden bg-black/40 border border-white/10">
-                <iframe
-                  title="Zoom meeting"
-                  src={zoomJoinUrl}
-                  className="w-full h-full"
-                  allow="camera; microphone; display-capture; autoplay; fullscreen"
-                />
-              </div>
-              <p className="text-[11px] text-zinc-500">
-                If Zoom blocks embedding, use Open Zoom. Chair/stage controls in this shell still apply.
-              </p>
-            </div>
+            <ZoomSdkJoin
+              joinUrl={zoomJoinUrl}
+              userName={displayName}
+              isHost={isChairperson}
+            />
           )}
           </div>
 
