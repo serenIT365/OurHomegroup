@@ -31,3 +31,17 @@ export function parseZoomJoinUrl(url?: string | null): {
     return { meetingNumber, password: "" };
   }
 }
+
+/** Zoom web client join page (best-effort in-page iframe). */
+export function webClientJoinUrl(joinUrl: string): string {
+  const { meetingNumber, password } = parseZoomJoinUrl(joinUrl);
+  if (!meetingNumber) return joinUrl;
+  let host = "zoom.us";
+  try {
+    host = new URL(joinUrl).host || host;
+  } catch {
+    /* keep */
+  }
+  const q = password ? `?pwd=${encodeURIComponent(password)}` : "";
+  return `https://${host}/wc/${meetingNumber}/join${q}`;
+}
