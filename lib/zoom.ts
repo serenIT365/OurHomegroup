@@ -32,8 +32,13 @@ export function parseZoomJoinUrl(url?: string | null): {
   }
 }
 
-/** Zoom web client join page (best-effort in-page iframe). */
-export function webClientJoinUrl(joinUrl: string): string {
+function b64(s: string) {
+  if (typeof btoa === "function") return btoa(unescape(encodeURIComponent(s)));
+  return Buffer.from(s, "utf8").toString("base64");
+}
+
+/** Zoom web client join page with pwd + display name prefilled. */
+export function webClientJoinUrl(joinUrl: string, displayName?: string): string {
   const { meetingNumber, password } = parseZoomJoinUrl(joinUrl);
   if (!meetingNumber) return joinUrl;
   let host = "zoom.us";
@@ -42,6 +47,14 @@ export function webClientJoinUrl(joinUrl: string): string {
   } catch {
     /* keep */
   }
-  const q = password ? `?pwd=${encodeURIComponent(password)}` : "";
-  return `https://${host}/wc/${meetingNumber}/join${q}`;
+  const params = new URLSearchParams();
+  if (password) params.set("pwd", password);
+  params.set("prefer", "1");
+  params.set("fromPWA", "1");
+  const name = (displayName || "").trim();
+  if (name) {
+    params.set("uname", name);
+    params.set("un", b64(name));
+  }
+  return `https://${host}/wc/${meetingNumber}/join?${params.toString()}`;
 }
