@@ -164,7 +164,6 @@ export default function MeetingRoom({
             joinUrl={zoomUrl}
             userName={displayName}
             isHost={isChairperson}
-            autoEmbed
           />
         ) : (
           <p className="p-6 text-sm text-amber-300">
