@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OurHomegroup Zoom</title>
+  <link type="text/css" rel="stylesheet" href="https://source.zoom.us/4.0.0/css/bootstrap.css" />
+  <link type="text/css" rel="stylesheet" href="https://source.zoom.us/4.0.0/css/react-select.css" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b1724; color: #fff; font-family: system-ui, sans-serif; }
+    #status { padding: 12px 16px; font-size: 13px; color: #94a3b8; }
+    #status.err { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <div id="status">Connecting to Zoom on OurHomegroup…</div>
+  <script src="https://source.zoom.us/4.0.0/lib/vendor/react.min.js"></script>
+  <script src="https://source.zoom.us/4.0.0/lib/vendor/react-dom.min.js"></script>
+  <script src="https://source.zoom.us/4.0.0/lib/vendor/redux.min.js"></script>
+  <script src="https://source.zoom.us/4.0.0/lib/vendor/redux-thunk.min.js"></script>
+  <script src="https://source.zoom.us/4.0.0/lib/vendor/lodash.min.js"></script>
+  <script src="https://source.zoom.us/zoom-meeting-4.0.0.min.js"></script>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var meetingNumber = (q.get("mn") || "").replace(/\D/g, "");
+      var passWord = q.get("pwd") || "";
+      var userName = q.get("name") || "Guest";
+      var signature = q.get("signature") || "";
+      var sdkKey = q.get("sdkKey") || "";
+      var leaveUrl = q.get("leaveUrl") || "/meetings";
+      var status = document.getElementById("status");
+      function fail(m) {
+        status.className = "err";
+        status.textContent = m;
+      }
+      if (!meetingNumber || !signature || !sdkKey) {
+        fail("Missing meeting credentials. Use Open in Zoom app.");
+        return;
+      }
+      if (!window.ZoomMtg) {
+        fail("Zoom client failed to load.");
+        return;
+      }
+      ZoomMtg.setZoomJSLib("https://source.zoom.us/4.0.0/lib", "/av");
+      ZoomMtg.preLoadWasm();
+      ZoomMtg.prepareWebSDK();
+      ZoomMtg.init({
+        leaveUrl: leaveUrl,
+        patchJsMedia: true,
+        disableInvite: true,
+        success: function () {
+          status.textContent = "Joining as " + userName + "…";
+          ZoomMtg.join({
+            signature: signature,
+            sdkKey: sdkKey,
+            meetingNumber: meetingNumber,
+            userName: userName,
+            passWord: passWord,
+            success: function () {
+              status.style.display = "none";
+            },
+            error: function (e) {
+              fail((e && (e.reason || e.message || e.errorMessage)) || "Zoom join failed");
+            }
+          });
+        },
+        error: function (e) {
+          fail((e && (e.reason || e.message)) || "Zoom init failed");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

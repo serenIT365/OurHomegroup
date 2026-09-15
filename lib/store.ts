@@ -34,6 +34,7 @@ function rowToMeeting(row: Record<string, unknown>): Meeting {
     startAt: row.start_at as string,
     endAt: (row.end_at as string) || undefined,
     recurrence: row.recurrence as Meeting["recurrence"],
+    enabled: row.enabled === undefined || row.enabled === null ? true : Boolean(row.enabled),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -224,12 +225,31 @@ export const store = {
     if (patch.chairId !== undefined) mapped.chair_id = patch.chairId;
     if (patch.hostId !== undefined) mapped.host_id = patch.hostId;
     if (patch.recurrence !== undefined) mapped.recurrence = patch.recurrence;
-    const { data, error } = await getSupabase()
+    if (patch.timezone !== undefined) mapped.timezone = patch.timezone;
+    if (patch.language !== undefined) mapped.language = patch.language;
+    if (patch.enabled !== undefined) mapped.enabled = patch.enabled;
+    let { data, error } = await getSupabase()
       .from("meetings")
       .update(mapped)
       .eq("id", id)
       .select("*")
       .maybeSingle();
+    if (error && mapped.enabled !== undefined && /enabled/i.test(error.message || "")) {
+      delete mapped.enabled;
+      const retry = await getSupabase()
+        .from("meetings")
+        .update(mapped)
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+      if (!error && data) {
+        const mem = rowToMeeting(data);
+        mem.enabled = patch.enabled;
+        return mem;
+      }
+    }
     if (error) throw error;
     return data ? rowToMeeting(data) : null;
   },
