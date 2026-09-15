@@ -712,6 +712,7 @@ function MeetingChrome({
   userIdentity,
   nowLabel,
   onLeave,
+  showZoom,
   zoomJoinUrl,
   cameraOn,
   micOn,
@@ -813,7 +814,7 @@ function MeetingChrome({
 
   return (
     <div className="rounded-3xl overflow-hidden border border-white/10 bg-[#0d1b2a] text-white">
-      <TopBar meeting={meeting} nowLabel={nowLabel} count={count} showZoom={showZoom} zoomJoinUrl={zoomUrl} />
+      <TopBar meeting={meeting} nowLabel={nowLabel} count={count} showZoom={showZoom} zoomJoinUrl={zoomJoinUrl} />
 
       <div className="grid lg:grid-cols-[200px_1fr_300px] min-h-[640px]">
         <aside className="hidden lg:flex flex-col border-r border-white/10 bg-[#0b1724] p-4">
