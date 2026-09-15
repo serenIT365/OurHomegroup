@@ -35,7 +35,7 @@ export default function CreateMeetingForm({
     name: "",
     description: "",
     type: "",
-    provider: "hybrid" as MeetingProvider,
+    provider: "livekit" as MeetingProvider,
     capacity: 40,
     waitingRoomEnabled: true,
     recordingEnabled: false,
@@ -190,9 +190,9 @@ export default function CreateMeetingForm({
             onChange={(e) => update("provider", e.target.value as MeetingProvider)}
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="hybrid">Hybrid (LiveKit + Zoom option)</option>
-            <option value="livekit">LiveKit only</option>
-            <option value="zoom">Zoom only</option>
+            <option value="livekit">OHG Platform (LiveKit)</option>
+            <option value="zoom">Zoom Meeting (Workplace license)</option>
+            <option value="hybrid">Hybrid — OHG room + Zoom link</option>
           </select>
         </label>
 
@@ -267,11 +267,11 @@ export default function CreateMeetingForm({
 
         {form.provider !== "livekit" && (
         <label className="block space-y-1.5 md:col-span-2">
-          <span className="text-sm font-medium">Zoom join URL (optional fallback)</span>
+          <span className="text-sm font-medium">Zoom join URL (Workplace meeting)</span>
           <input
             value={form.zoomJoinUrl}
             onChange={(e) => update("zoomJoinUrl", e.target.value)}
-            placeholder="https://zoom.us/j/…"
+            placeholder="https://zoom.us/j/123456789?pwd=…"
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </label>

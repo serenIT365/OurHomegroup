@@ -16,6 +16,7 @@ import "@livekit/components-styles";
 import { fetchLiveKitToken } from "@/lib/livekit";
 import type { Meeting, Role } from "@/lib/types";
 import { createZoomFallbackLink } from "@/lib/zoom";
+import ZoomSdkJoin from "@/components/ZoomSdkJoin";
 import { cn } from "@/lib/utils";
 import ZoomVideoTile from "@/components/ZoomVideoTile";
 
@@ -154,22 +155,26 @@ export default function MeetingRoom({
       ? meeting.zoomJoinUrl
       : undefined;
 
-  if (zoomVideo) {
+  if (meeting.provider === "zoom" && joined && !token) {
     return (
-      <ZoomVideoSession
-        meeting={meeting}
-        isChairperson={isChairperson}
-        displayName={displayName}
-        userIdentity={userIdentity}
-        nowLabel={nowLabel}
-        showZoom={true}
-        onLeave={() => {
-          setZoomVideo(false);
-          setJoined(false);
-          recordLeave();
-        }}
-        zoomJoinUrl={zoomUrl}
-      />
+      <div className="rounded-3xl border border-white/10 bg-[#0d1b2a] text-white p-4 space-y-4">
+        <TopBar meeting={meeting} nowLabel={nowLabel} count={1} showZoom={true} zoomJoinUrl={zoomUrl} />
+        {zoomUrl ? (
+          <ZoomSdkJoin
+            joinUrl={zoomUrl}
+            userName={displayName}
+            isHost={isChairperson}
+            autoEmbed
+          />
+        ) : (
+          <p className="p-6 text-sm text-amber-300">
+            Add a Workplace Zoom join URL on this meeting to use Open Zoom or embed.
+          </p>
+        )}
+        <button onClick={() => { setJoined(false); recordLeave(); }} className="text-xs px-3 py-2 rounded-xl bg-red-600">
+          Leave
+        </button>
+      </div>
     );
   }
 
@@ -187,11 +192,34 @@ export default function MeetingRoom({
           </p>
           {error && <p className="text-amber-300 text-sm">{error}</p>}
           <button
-            onClick={meeting.provider === "zoom" ? connectZoomVideo : connectLiveKit}
+            onClick={
+              meeting.provider === "zoom"
+                ? async () => {
+                    setJoined(true);
+                    await recordJoin();
+                  }
+                : connectLiveKit
+            }
             className="bg-teal-600 hover:bg-teal-500 px-8 py-3 rounded-2xl font-medium"
           >
-            {isChairperson ? "Start meeting as Chairperson" : "Join meeting"}
+            {meeting.provider === "zoom"
+              ? isChairperson
+                ? "Open Zoom meeting as Chairperson"
+                : "Join Zoom meeting"
+              : isChairperson
+                ? "Start meeting as Chairperson"
+                : "Join meeting"}
           </button>
+          {meeting.provider === "zoom" && zoomUrl && (
+            <a
+              href={zoomUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-blue-300 underline"
+            >
+              Or open in the Zoom app
+            </a>
+          )}
         </div>
       </div>
     );
@@ -879,6 +907,14 @@ function MeetingChrome({
             )}
           </div>
           </div>
+
+          {zoomJoinUrl && showZoom && (
+            <ZoomSdkJoin
+              joinUrl={zoomJoinUrl}
+              userName={displayName}
+              isHost={isChairperson}
+            />
+          )}
 
           {isChairperson && (
             <div className="rounded-2xl border border-white/10 p-3">
