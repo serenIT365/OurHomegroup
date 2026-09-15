@@ -50,7 +50,7 @@ function timeLabel(iso: string, tz: string) {
 }
 
 export default async function MeetingsListPage() {
-  const meetings = await store.listMeetings("org_demo");
+  const meetings = (await store.listMeetings("org_demo")).filter((m) => m.enabled !== false);
   const now = Date.now();
 
   const sorted = [...meetings].sort(

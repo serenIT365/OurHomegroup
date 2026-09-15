@@ -46,6 +46,24 @@ export default async function MeetingDetailPage({
   const isChairperson = !!user && chairId === user.id;
   const canEditChair = canAssignChair(role);
 
+  if (meeting.enabled === false) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <header className="border-b bg-white dark:bg-zinc-900">
+          <div className="max-w-6xl mx-auto px-4 h-12 flex items-center">
+            <Link href="/meetings" className="text-sm text-zinc-500 hover:text-teal-600">
+              ← All meetings
+            </Link>
+          </div>
+        </header>
+        <main className="max-w-lg mx-auto px-4 py-16 text-center space-y-2">
+          <h1 className="text-xl font-semibold">{meeting.name}</h1>
+          <p className="text-sm text-zinc-500">This meeting is disabled. An admin can enable it from Admin.</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b bg-white dark:bg-zinc-900">

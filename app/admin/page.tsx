@@ -2,7 +2,7 @@ import { store } from "@/lib/store";
 import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import MembersList from "@/components/MembersList";
-import ChairpersonAssign from "@/components/ChairpersonAssign";
+import AdminMeetingsManager from "@/components/AdminMeetingsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -87,39 +87,11 @@ export default async function AdminPage() {
           <h2 className="text-xl font-semibold tracking-tight mb-4">
             Meetings ({meetings.length})
           </h2>
-          <div className="space-y-2">
-            {meetings.map((m) => (
-              <div
-                key={m.id}
-                className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-5 py-4 text-sm"
-              >
-                <div>
-                  <div className="font-medium">{m.name}</div>
-                  <div className="text-zinc-500 text-xs mt-0.5">
-                    {new Date(m.startAt).toLocaleString()} · {m.provider} ·{" "}
-                    {m.visibility}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href={`/api/meetings/${m.id}?format=ics`}
-                    className="px-3 py-1.5 rounded-lg border hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                  >
-                    ICS
-                  </a>
-                  <Link
-                    href={`/meetings/${m.id}`}
-                    className="px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700"
-                  >
-                    Open
-                  </Link>
-                </div>
-                <div className="w-full pt-3">
-                  <ChairpersonAssign meeting={m} canEdit={true} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-xs text-zinc-500 mb-3">
+            Edit details, disable/enable listing, or delete. Optional SQL:
+            <code className="ml-1">ALTER TABLE meetings ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;</code>
+          </p>
+          <AdminMeetingsManager meetings={meetings} />
         </section>
 
         {/* Attendance report */}

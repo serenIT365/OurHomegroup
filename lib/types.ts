@@ -54,6 +54,7 @@ export interface Meeting {
   endAt?: string;
   recurrence?: "none" | "daily" | "weekly" | "monthly";
   recurrenceRule?: string; // simple RRULE-like or cron
+  enabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
