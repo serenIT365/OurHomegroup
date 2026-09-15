@@ -49,7 +49,7 @@ export default async function MeetingDetailPage({
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b bg-white dark:bg-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
           <Link href="/meetings" className="text-sm text-zinc-500 hover:text-teal-600">
             ← All meetings
           </Link>
@@ -61,7 +61,7 @@ export default async function MeetingDetailPage({
           </a>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
         {canEditChair && <ChairpersonAssign meeting={meeting} canEdit={canEditChair} />}
         <MeetingRoom
           meeting={meeting}
