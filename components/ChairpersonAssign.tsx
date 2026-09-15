@@ -83,9 +83,12 @@ export default function ChairpersonAssign({
         </select>
       </label>
 
-      <div>
-        <h4 className="text-sm font-medium mb-2">Upcoming occurrences</h4>
-        <div className="space-y-2">
+      <details className="rounded-xl border border-zinc-200 dark:border-zinc-800 px-3 py-2">
+        <summary className="cursor-pointer text-sm font-medium list-none flex items-center justify-between">
+          <span>Upcoming occurrences ({occurrences.length})</span>
+          <span className="text-xs text-zinc-500 font-normal">Expand</span>
+        </summary>
+        <div className="space-y-2 mt-3">
           {occurrences.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="text-zinc-600 dark:text-zinc-400">
@@ -110,7 +113,7 @@ export default function ChairpersonAssign({
             <p className="text-xs text-zinc-500">No occurrences generated yet.</p>
           )}
         </div>
-      </div>
+      </details>
     </div>
   );
 }
