@@ -31,3 +31,30 @@ export function parseZoomJoinUrl(url?: string | null): {
     return { meetingNumber, password: "" };
   }
 }
+
+function b64(s: string) {
+  if (typeof btoa === "function") return btoa(unescape(encodeURIComponent(s)));
+  return Buffer.from(s, "utf8").toString("base64");
+}
+
+/** Zoom web client join page with pwd + display name prefilled. */
+export function webClientJoinUrl(joinUrl: string, displayName?: string): string {
+  const { meetingNumber, password } = parseZoomJoinUrl(joinUrl);
+  if (!meetingNumber) return joinUrl;
+  let host = "zoom.us";
+  try {
+    host = new URL(joinUrl).host || host;
+  } catch {
+    /* keep */
+  }
+  const params = new URLSearchParams();
+  if (password) params.set("pwd", password);
+  params.set("prefer", "1");
+  params.set("fromPWA", "1");
+  const name = (displayName || "").trim();
+  if (name) {
+    params.set("uname", name);
+    params.set("un", b64(name));
+  }
+  return `https://${host}/wc/${meetingNumber}/join?${params.toString()}`;
+}
