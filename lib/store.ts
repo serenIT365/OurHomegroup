@@ -34,6 +34,7 @@ function rowToMeeting(row: Record<string, unknown>): Meeting {
     startAt: row.start_at as string,
     endAt: (row.end_at as string) || undefined,
     recurrence: row.recurrence as Meeting["recurrence"],
+    recurrenceRule: (row.recurrence_rule as string) || undefined,
     enabled: row.enabled === undefined || row.enabled === null ? true : Boolean(row.enabled),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -197,9 +198,39 @@ export const store = {
         start_at: input.startAt,
         end_at: input.endAt || null,
         recurrence: input.recurrence || "none",
+        recurrence_rule: input.recurrenceRule || null,
       })
       .select("*")
       .single();
+    if (error && /recurrence_rule/i.test(error.message || "")) {
+      const { recurrence_rule: _drop, ...rest } = {
+        id,
+        organization_id: input.organizationId,
+        name: input.name,
+        description: input.description || null,
+        type: input.type || null,
+        host_id: input.hostId || input.chairId || null,
+        chair_id: input.chairId || input.hostId || null,
+        provider: input.provider,
+        livekit_room_name: livekitRoomName,
+        zoom_join_url: input.zoomJoinUrl || null,
+        capacity: input.capacity,
+        waiting_room_enabled: input.waitingRoomEnabled,
+        password: input.password || null,
+        recording_enabled: input.recordingEnabled,
+        visibility: input.visibility,
+        timezone: input.timezone,
+        language: input.language,
+        start_at: input.startAt,
+        end_at: input.endAt || null,
+        recurrence: input.recurrence || "none",
+      };
+      const retry = await getSupabase().from("meetings").insert(rest).select("*").single();
+      if (retry.error) throw retry.error;
+      const m = rowToMeeting(retry.data);
+      m.recurrenceRule = input.recurrenceRule;
+      return m;
+    }
     if (error) throw error;
     return rowToMeeting(data);
   },
@@ -225,6 +256,7 @@ export const store = {
     if (patch.chairId !== undefined) mapped.chair_id = patch.chairId;
     if (patch.hostId !== undefined) mapped.host_id = patch.hostId;
     if (patch.recurrence !== undefined) mapped.recurrence = patch.recurrence;
+    if (patch.recurrenceRule !== undefined) mapped.recurrence_rule = patch.recurrenceRule;
     if (patch.timezone !== undefined) mapped.timezone = patch.timezone;
     if (patch.language !== undefined) mapped.language = patch.language;
     if (patch.enabled !== undefined) mapped.enabled = patch.enabled;
@@ -234,6 +266,17 @@ export const store = {
       .eq("id", id)
       .select("*")
       .maybeSingle();
+    if (error && mapped.recurrence_rule !== undefined && /recurrence_rule/i.test(error.message || "")) {
+      delete mapped.recurrence_rule;
+      const retry = await getSupabase()
+        .from("meetings")
+        .update(mapped)
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error && mapped.enabled !== undefined && /enabled/i.test(error.message || "")) {
       delete mapped.enabled;
       const retry = await getSupabase()

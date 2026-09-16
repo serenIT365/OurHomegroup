@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Meeting, MeetingProvider } from "@/lib/types";
 import ChairpersonAssign from "@/components/ChairpersonAssign";
+import WeekdayPicker from "@/components/WeekdayPicker";
+import { ALL_DAYS, encodeWeekdays, parseWeekdays } from "@/lib/weekdays";
 
 function toLocalInput(iso?: string) {
   if (!iso) return "";
@@ -163,6 +165,7 @@ function EditForm({
     capacity: meeting.capacity,
     zoomJoinUrl: meeting.zoomJoinUrl || "",
     recurrence: meeting.recurrence || "none",
+    weekdays: parseWeekdays(meeting.recurrenceRule),
     enabled: meeting.enabled !== false,
   });
 
@@ -182,6 +185,10 @@ function EditForm({
           capacity: Number(form.capacity) || meeting.capacity,
           zoomJoinUrl: form.zoomJoinUrl.trim() || undefined,
           recurrence: form.recurrence as Meeting["recurrence"],
+          recurrenceRule:
+            form.recurrence === "daily" || form.recurrence === "weekly"
+              ? encodeWeekdays(form.weekdays)
+              : undefined,
           enabled: form.enabled,
         });
       }}
@@ -254,6 +261,36 @@ function EditForm({
           onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
         />
       </label>
+      <label className="text-xs space-y-1">
+        <span>Recurrence</span>
+        <select
+          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
+          value={form.recurrence}
+          onChange={(e) => {
+            const recurrence = e.target.value as Meeting["recurrence"];
+            setForm({
+              ...form,
+              recurrence: recurrence || "none",
+              weekdays:
+                recurrence === "daily" || recurrence === "weekly" ? [...ALL_DAYS] : form.weekdays,
+            });
+          }}
+        >
+          <option value="none">One-time</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </label>
+      {(form.recurrence === "daily" || form.recurrence === "weekly") && (
+        <div className="text-xs space-y-1 sm:col-span-2">
+          <span>Days of week</span>
+          <WeekdayPicker
+            days={form.weekdays}
+            onChange={(weekdays) => setForm({ ...form, weekdays })}
+          />
+        </div>
+      )}
       {form.provider !== "livekit" && (
         <label className="text-xs space-y-1 sm:col-span-2">
           <span>Zoom join URL</span>
