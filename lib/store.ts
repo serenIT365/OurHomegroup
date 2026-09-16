@@ -203,7 +203,7 @@ export const store = {
       .select("*")
       .single();
     if (error && /recurrence_rule/i.test(error.message || "")) {
-      const { recurrence_rule: _drop, ...rest } = {
+      const rest = {
         id,
         organization_id: input.organizationId,
         name: input.name,
