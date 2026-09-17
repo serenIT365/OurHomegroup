@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MeetingProvider, UserProfile } from "@/lib/types";
 import { canBeChair } from "@/lib/roles";
+import WeekdayPicker from "@/components/WeekdayPicker";
+import { ALL_DAYS, encodeWeekdays } from "@/lib/weekdays";
 
 const TIMEZONES = [
   "America/New_York",
@@ -46,6 +48,7 @@ export default function CreateMeetingForm({
     recurrence: "weekly" as "none" | "daily" | "weekly" | "monthly",
     zoomJoinUrl: "",
     chairId: "",
+    weekdays: [...ALL_DAYS] as number[],
   });
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -82,6 +85,10 @@ export default function CreateMeetingForm({
           language: form.language,
           startAt: new Date(form.startAt).toISOString(),
           recurrence: form.recurrence,
+          recurrenceRule:
+            form.recurrence === "daily" || form.recurrence === "weekly"
+              ? encodeWeekdays(form.weekdays)
+              : undefined,
           zoomJoinUrl: form.zoomJoinUrl.trim() || undefined,
           chairId: form.chairId || undefined,
           hostId: form.chairId || undefined,
@@ -226,9 +233,13 @@ export default function CreateMeetingForm({
           <span className="text-sm font-medium">Recurrence</span>
           <select
             value={form.recurrence}
-            onChange={(e) =>
-              update("recurrence", e.target.value as typeof form.recurrence)
-            }
+            onChange={(e) => {
+              const recurrence = e.target.value as typeof form.recurrence;
+              update("recurrence", recurrence);
+              if (recurrence === "daily" || recurrence === "weekly") {
+                update("weekdays", [...ALL_DAYS]);
+              }
+            }}
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="none">One-time</option>
@@ -237,6 +248,18 @@ export default function CreateMeetingForm({
             <option value="monthly">Monthly</option>
           </select>
         </label>
+
+        {(form.recurrence === "daily" || form.recurrence === "weekly") && (
+          <div className="block space-y-1.5 md:col-span-2">
+            <span className="text-sm font-medium">Days of week</span>
+            <p className="text-[11px] text-zinc-500">
+              {form.recurrence === "weekly"
+                ? "All days start on. Turn off any day this weekly series should skip."
+                : "Uncheck days that should not meet."}
+            </p>
+            <WeekdayPicker days={form.weekdays} onChange={(days) => update("weekdays", days)} />
+          </div>
+        )}
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium">Visibility</span>

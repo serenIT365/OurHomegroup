@@ -53,7 +53,7 @@ export interface Meeting {
   startAt: string; // ISO
   endAt?: string;
   recurrence?: "none" | "daily" | "weekly" | "monthly";
-  recurrenceRule?: string; // simple RRULE-like or cron
+  recurrenceRule?: string; // BYDAY=SU,MO,TU,WE,TH,FR,SA or 0,1,2,3,4,5,6
   enabled?: boolean;
   createdAt: string;
   updatedAt: string;
