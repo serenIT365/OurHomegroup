@@ -253,6 +253,8 @@ export const store = {
     if (patch.recordingEnabled !== undefined) mapped.recording_enabled = patch.recordingEnabled;
     if (patch.visibility !== undefined) mapped.visibility = patch.visibility;
     if (patch.startAt !== undefined) mapped.start_at = patch.startAt;
+    if (patch.endAt !== undefined) mapped.end_at = patch.endAt;
+    if (patch.password !== undefined) mapped.password = patch.password;
     if (patch.chairId !== undefined) mapped.chair_id = patch.chairId;
     if (patch.hostId !== undefined) mapped.host_id = patch.hostId;
     if (patch.recurrence !== undefined) mapped.recurrence = patch.recurrence;

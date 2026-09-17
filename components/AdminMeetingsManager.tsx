@@ -143,6 +143,15 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
   );
 }
 
+const TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Phoenix",
+  "UTC",
+];
+
 function EditForm({
   meeting,
   busy,
@@ -160,14 +169,23 @@ function EditForm({
     type: meeting.type || "",
     provider: meeting.provider,
     visibility: meeting.visibility,
-    timezone: meeting.timezone,
+    timezone: meeting.timezone || "America/New_York",
+    language: meeting.language || "en",
     startAt: toLocalInput(meeting.startAt),
+    endAt: toLocalInput(meeting.endAt),
     capacity: meeting.capacity,
     zoomJoinUrl: meeting.zoomJoinUrl || "",
+    password: meeting.password || "",
     recurrence: meeting.recurrence || "none",
     weekdays: parseWeekdays(meeting.recurrenceRule),
+    waitingRoomEnabled: meeting.waitingRoomEnabled,
+    recordingEnabled: meeting.recordingEnabled,
     enabled: meeting.enabled !== false,
   });
+
+  function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
   return (
     <form
@@ -181,99 +199,80 @@ function EditForm({
           provider: form.provider as MeetingProvider,
           visibility: form.visibility,
           timezone: form.timezone,
+          language: form.language,
           startAt: form.startAt ? new Date(form.startAt).toISOString() : meeting.startAt,
+          endAt: form.endAt ? new Date(form.endAt).toISOString() : undefined,
           capacity: Number(form.capacity) || meeting.capacity,
           zoomJoinUrl: form.zoomJoinUrl.trim() || undefined,
+          password: form.password.trim() || undefined,
           recurrence: form.recurrence as Meeting["recurrence"],
           recurrenceRule:
             form.recurrence === "daily" || form.recurrence === "weekly"
               ? encodeWeekdays(form.weekdays)
               : undefined,
+          waitingRoomEnabled: form.waitingRoomEnabled,
+          recordingEnabled: form.recordingEnabled,
           enabled: form.enabled,
         });
       }}
     >
-      <label className="text-xs space-y-1">
+      <label className="text-xs space-y-1 sm:col-span-2">
         <span>Name</span>
-        <input
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-      </label>
-      <label className="text-xs space-y-1">
-        <span>Start</span>
-        <input
-          type="datetime-local"
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.startAt}
-          onChange={(e) => setForm({ ...form, startAt: e.target.value })}
-        />
+        <input className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.name} onChange={(e) => set("name", e.target.value)} />
       </label>
       <label className="text-xs space-y-1 sm:col-span-2">
         <span>Description</span>
-        <input
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
+        <textarea rows={2} className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.description} onChange={(e) => set("description", e.target.value)} />
       </label>
       <label className="text-xs space-y-1">
-        <span>Type</span>
-        <input
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.target.value })}
-        />
+        <span>Type / topic</span>
+        <input className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.type} onChange={(e) => set("type", e.target.value)} />
       </label>
       <label className="text-xs space-y-1">
         <span>Provider</span>
-        <select
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.provider}
-          onChange={(e) => setForm({ ...form, provider: e.target.value as MeetingProvider })}
-        >
+        <select className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.provider} onChange={(e) => set("provider", e.target.value as MeetingProvider)}>
           <option value="livekit">OHG Platform (LiveKit)</option>
-          <option value="zoom">Zoom Meeting</option>
-          <option value="hybrid">Hybrid</option>
+          <option value="zoom">Zoom Meeting (Workplace)</option>
+          <option value="hybrid">Hybrid — OHG + Zoom</option>
         </select>
       </label>
       <label className="text-xs space-y-1">
-        <span>Visibility</span>
-        <select
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.visibility}
-          onChange={(e) => setForm({ ...form, visibility: e.target.value as Meeting["visibility"] })}
-        >
-          <option value="public">Public</option>
-          <option value="private">Private</option>
-          <option value="invite">Invite only</option>
+        <span>Start</span>
+        <input type="datetime-local" className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.startAt} onChange={(e) => set("startAt", e.target.value)} />
+      </label>
+      <label className="text-xs space-y-1">
+        <span>End (optional)</span>
+        <input type="datetime-local" className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.endAt} onChange={(e) => set("endAt", e.target.value)} />
+      </label>
+      <label className="text-xs space-y-1">
+        <span>Timezone</span>
+        <select className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.timezone} onChange={(e) => set("timezone", e.target.value)}>
+          {TIMEZONES.map((tz) => (
+            <option key={tz} value={tz}>{tz}</option>
+          ))}
         </select>
       </label>
       <label className="text-xs space-y-1">
-        <span>Capacity</span>
-        <input
-          type="number"
-          min={1}
-          max={500}
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-          value={form.capacity}
-          onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
-        />
+        <span>Language</span>
+        <input className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.language} onChange={(e) => set("language", e.target.value)} />
       </label>
       <label className="text-xs space-y-1">
-        <span>Recurrence</span>
+        <span>Frequency</span>
         <select
           className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
           value={form.recurrence}
           onChange={(e) => {
             const recurrence = e.target.value as Meeting["recurrence"];
-            setForm({
-              ...form,
+            setForm((prev) => ({
+              ...prev,
               recurrence: recurrence || "none",
               weekdays:
-                recurrence === "daily" || recurrence === "weekly" ? [...ALL_DAYS] : form.weekdays,
-            });
+                recurrence === "daily" || recurrence === "weekly"
+                  ? prev.weekdays.length
+                    ? prev.weekdays
+                    : [...ALL_DAYS]
+                  : prev.weekdays,
+            }));
           }}
         >
           <option value="none">One-time</option>
@@ -282,40 +281,52 @@ function EditForm({
           <option value="monthly">Monthly</option>
         </select>
       </label>
+      <label className="text-xs space-y-1">
+        <span>Visibility</span>
+        <select className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.visibility} onChange={(e) => set("visibility", e.target.value as Meeting["visibility"])}>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+          <option value="invite">Invite only</option>
+        </select>
+      </label>
       {(form.recurrence === "daily" || form.recurrence === "weekly") && (
         <div className="text-xs space-y-1 sm:col-span-2">
           <span>Days of week</span>
-          <WeekdayPicker
-            days={form.weekdays}
-            onChange={(weekdays) => setForm({ ...form, weekdays })}
-          />
+          <p className="text-[11px] text-zinc-500">
+            {form.recurrence === "weekly"
+              ? "Weekly series — all days start on; turn off days to skip."
+              : "Daily series — uncheck days that should not meet."}
+          </p>
+          <WeekdayPicker days={form.weekdays} onChange={(weekdays) => set("weekdays", weekdays)} />
         </div>
       )}
-      {form.provider !== "livekit" && (
-        <label className="text-xs space-y-1 sm:col-span-2">
-          <span>Zoom join URL</span>
-          <input
-            className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent"
-            value={form.zoomJoinUrl}
-            onChange={(e) => setForm({ ...form, zoomJoinUrl: e.target.value })}
-          />
-        </label>
-      )}
+      <label className="text-xs space-y-1">
+        <span>Capacity</span>
+        <input type="number" min={1} max={500} className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.capacity} onChange={(e) => set("capacity", Number(e.target.value))} />
+      </label>
+      <label className="text-xs space-y-1">
+        <span>Room password (optional)</span>
+        <input className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.password} onChange={(e) => set("password", e.target.value)} />
+      </label>
+      <label className="text-xs space-y-1 sm:col-span-2">
+        <span>Zoom join URL</span>
+        <input className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.zoomJoinUrl} onChange={(e) => set("zoomJoinUrl", e.target.value)} placeholder="https://zoom.us/j/…?pwd=…" />
+      </label>
+      <label className="text-xs flex items-center gap-2">
+        <input type="checkbox" checked={form.waitingRoomEnabled} onChange={(e) => set("waitingRoomEnabled", e.target.checked)} />
+        Waiting room
+      </label>
+      <label className="text-xs flex items-center gap-2">
+        <input type="checkbox" checked={form.recordingEnabled} onChange={(e) => set("recordingEnabled", e.target.checked)} />
+        Recording
+      </label>
       <label className="text-xs flex items-center gap-2 sm:col-span-2">
-        <input
-          type="checkbox"
-          checked={form.enabled}
-          onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-        />
+        <input type="checkbox" checked={form.enabled} onChange={(e) => set("enabled", e.target.checked)} />
         Enabled (listed and joinable)
       </label>
       <div className="sm:col-span-2 flex gap-2">
-        <button
-          type="submit"
-          disabled={busy}
-          className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs"
-        >
-          Save
+        <button type="submit" disabled={busy} className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs">
+          Save changes
         </button>
         <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border text-xs">
           Cancel
