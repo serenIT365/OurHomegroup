@@ -20,6 +20,7 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
 
   const sorted = useMemo(
     () =>
@@ -40,6 +41,10 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Update failed");
+      const label = data.meeting?.name || body.name || "Meeting";
+      const msg = `Saved “${label}” — ${new Date().toLocaleString()}`;
+      setSaved(msg);
+      window.alert(msg);
       setEditing(null);
       router.refresh();
     } catch (e) {
@@ -68,6 +73,11 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
   return (
     <div className="space-y-3">
       {error && <p className="text-sm text-amber-700">{error}</p>}
+      {saved && (
+        <p className="text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 rounded-xl">
+          {saved}
+        </p>
+      )}
       {sorted.map((m) => {
         const on = m.enabled !== false;
         return (
