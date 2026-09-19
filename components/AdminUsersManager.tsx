@@ -80,7 +80,7 @@ export default function AdminUsersManager({ members }: { members: UserProfile[] 
                   {m.email?.trim() ? m.email : <span className="text-zinc-400">No email on file</span>}
                 </td>
                 <td className="px-4 py-3">
-                  <MemberRoleSelect memberId={m.id} role={m.role} />
+                  <MemberRoleSelect memberId={m.id} current={m.role} />
                 </td>
                 <td className="px-4 py-3 text-xs">
                   {m.enabled === false ? "Disabled" : "Active"}
