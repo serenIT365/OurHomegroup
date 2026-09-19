@@ -94,6 +94,12 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
               <div className="min-w-0">
                 <div className="font-medium truncate">
                   {m.name}
+                  {m.status === "pending" && (
+                    <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-600">Pending</span>
+                  )}
+                  {m.status === "declined" && (
+                    <span className="ml-2 text-[10px] uppercase tracking-wide text-zinc-500">Declined</span>
+                  )}
                   {!on && (
                     <span className="ml-2 text-[10px] uppercase tracking-wide text-zinc-500">
                       Disabled
@@ -105,6 +111,16 @@ export default function AdminMeetingsManager({ meetings }: { meetings: Meeting[]
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {m.status === "pending" && (
+                  <>
+                    <button type="button" className="px-2.5 py-1 rounded-lg bg-teal-600 text-white text-xs" onClick={() => patch(m.id, { status: "approved", enabled: true })}>
+                      Approve
+                    </button>
+                    <button type="button" className="px-2.5 py-1 rounded-lg border text-xs" onClick={() => patch(m.id, { status: "declined", enabled: false })}>
+                      Decline
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   disabled={busy === m.id}

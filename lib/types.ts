@@ -22,6 +22,7 @@ export interface UserProfile {
   recoveryAnniversary?: string;
   timezone?: string;
   avatarUrl?: string;
+  enabled?: boolean;
   privacy: {
     hideLastName: boolean;
     hideEmail: boolean;
@@ -55,6 +56,7 @@ export interface Meeting {
   recurrence?: "none" | "daily" | "weekly" | "monthly";
   recurrenceRule?: string; // BYDAY=SU,MO,TU,WE,TH,FR,SA or 0,1,2,3,4,5,6
   enabled?: boolean;
+  status?: "pending" | "approved" | "declined";
   createdAt: string;
   updatedAt: string;
 }

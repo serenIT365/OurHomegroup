@@ -1,8 +1,8 @@
 import { store } from "@/lib/store";
 import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
-import MembersList from "@/components/MembersList";
 import AdminMeetingsManager from "@/components/AdminMeetingsManager";
+import AdminUsersManager from "@/components/AdminUsersManager";
 
 export const dynamic = "force-dynamic";
 
@@ -40,12 +40,9 @@ export default async function AdminPage() {
             OurHomegroup Admin
           </Link>
           <nav className="flex gap-6 text-sm">
-            <Link href="/dashboard" className="hover:text-teal-600">
-              Dashboard
-            </Link>
-            <Link href="/meetings" className="hover:text-teal-600">
-              Meetings
-            </Link>
+            <a href="#meetings" className="hover:text-teal-600">Meetings</a>
+            <a href="#users" className="hover:text-teal-600">Users</a>
+            <Link href="/dashboard" className="hover:text-teal-600">Dashboard</Link>
           </nav>
         </div>
       </header>
@@ -63,35 +60,37 @@ export default async function AdminPage() {
           </p>
         </div>
 
-        {/* Create meeting */}
-        <section id="create-meeting">
+        <nav className="flex gap-2 text-sm">
+          <a href="#meetings" className="px-3 py-1.5 rounded-full bg-teal-600 text-white">Meetings</a>
+          <a href="#users" className="px-3 py-1.5 rounded-full border">Users</a>
+        </nav>
+
+        <section id="meetings" className="scroll-mt-20 space-y-8">
+          <h2 className="text-xl font-semibold">Meetings</h2>
           <CreateMeetingForm organizationId="org_demo" />
-        </section>
-
-        {/* Members */}
-        <section id="members">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">Members</h2>
-              <p className="text-sm text-zinc-500">
-                {members.length} members in this organization · privacy settings
-                respected
-              </p>
-            </div>
-          </div>
-          <MembersList members={members} />
-        </section>
-
-        {/* Meetings list */}
-        <section>
-          <h2 className="text-xl font-semibold tracking-tight mb-4">
-            Meetings ({meetings.length})
-          </h2>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">
+              Directory ({meetings.length})
+              {meetings.filter((m) => m.status === "pending").length > 0 && (
+                <span className="ml-2 text-sm font-normal text-amber-600">
+                  {meetings.filter((m) => m.status === "pending").length} pending
+                </span>
+              )}
+            </h3>
           <p className="text-xs text-zinc-500 mb-3">
             Edit details, disable/enable listing, or delete. Optional SQL:
             <code className="ml-1">ALTER TABLE meetings ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;</code>
           </p>
           <AdminMeetingsManager meetings={meetings} />
+          </div>
+        </section>
+
+        <section id="users" className="scroll-mt-20 space-y-4">
+          <h2 className="text-xl font-semibold">Users</h2>
+          <p className="text-sm text-zinc-500">
+            Admin and Power User can add, edit, disable, or delete accounts. Email is always visible here.
+          </p>
+          <AdminUsersManager members={members} />
         </section>
 
         {/* Attendance report */}

@@ -28,23 +28,27 @@ function fmtRemain(ms: number) {
 
 export default async function Home() {
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
-  let today: ReturnType<typeof upcomingSlots> = [];
   let live: ReturnType<typeof upcomingSlots> = [];
+  let nextHour: ReturnType<typeof upcomingSlots> = [];
+  let nextSix: ReturnType<typeof upcomingSlots> = [];
   try {
-    const meetings = (await store.listMeetings("org_demo")).filter((m) => m.enabled !== false);
+    const meetings = (await store.listMeetings("org_demo")).filter(
+      (m) => m.enabled !== false && m.status !== "pending" && m.status !== "declined"
+    );
     const now = new Date();
-    const slots = upcomingSlots(meetings, new Date(now.getTime() - 2 * 60 * 60 * 1000), 2);
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
+    const nowMs = now.getTime();
+    const slots = upcomingSlots(meetings, new Date(nowMs - 2 * 60 * 60 * 1000), 1);
     live = slots.filter((s) => {
       const t = new Date(s.startAt).getTime();
-      return t <= now.getTime() && s.endAt > now.getTime();
+      return t <= nowMs && s.endAt > nowMs;
     });
-    today = slots.filter((s) => {
+    nextHour = slots.filter((s) => {
       const t = new Date(s.startAt).getTime();
-      return t >= startOfDay.getTime() && t <= endOfDay.getTime() && s.endAt > now.getTime() && !live.includes(s);
+      return t > nowMs && t <= nowMs + 60 * 60 * 1000;
+    });
+    nextSix = slots.filter((s) => {
+      const t = new Date(s.startAt).getTime();
+      return t > nowMs + 60 * 60 * 1000 && t <= nowMs + 6 * 60 * 60 * 1000;
     });
   } catch {
     /* store optional on home */
@@ -98,50 +102,51 @@ export default async function Home() {
             “{quote.t}”
             <footer className="not-italic text-sm text-white/60 mt-1">— {quote.a}</footer>
           </blockquote>
-          <Link
-            href="/meetings"
-            className="inline-block mt-6 bg-teal-600 hover:bg-teal-500 px-6 py-2.5 rounded-xl font-medium"
-          >
-            Browse meetings
-          </Link>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/meetings" className="inline-block bg-teal-600 hover:bg-teal-500 px-6 py-2.5 rounded-xl font-medium">
+              Browse meetings
+            </Link>
+            <Link href="/meetings/submit" className="inline-block bg-white/15 hover:bg-white/25 px-6 py-2.5 rounded-xl font-medium">
+              Submit a meeting
+            </Link>
+          </div>
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-teal-800/40 bg-teal-950/40 p-4">
-          <h3 className="text-sm font-semibold text-teal-300 mb-2">Meetings in progress</h3>
-          {live.length === 0 ? (
-            <p className="text-sm text-zinc-500">None right now.</p>
-          ) : (
-            <ul className="space-y-2">
-              {live.map((s) => (
-                <li key={s.meeting.id + s.startAt}>
-                  <Link href={`/meetings/${s.meeting.id}`} className="flex justify-between text-sm hover:text-teal-400">
-                    <span>{s.meeting.name}</span>
-                    <span className="text-zinc-400">{fmtRemain(s.endAt - Date.now())} left</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-          <h3 className="text-sm font-semibold mb-2">Today’s meetings</h3>
-          {today.length === 0 ? (
-            <p className="text-sm text-zinc-500">No more meetings today. See the full schedule.</p>
-          ) : (
-            <ul className="space-y-2">
-              {today.map((s) => (
-                <li key={s.meeting.id + s.startAt}>
-                  <Link href={`/meetings/${s.meeting.id}`} className="flex justify-between text-sm hover:text-teal-600">
-                    <span>{s.meeting.name}</span>
-                    <span className="text-zinc-500">in {fmtRemain(new Date(s.startAt).getTime() - Date.now())}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <section className="max-w-3xl mx-auto px-4 py-8 space-y-3">
+        <HomeBucket
+          title="Meetings in progress"
+          count={live.length}
+          tone="live"
+          items={live.map((s) => ({
+            href: `/meetings/${s.meeting.id}`,
+            name: s.meeting.name,
+            meta: `Started ${new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${fmtRemain(s.endAt - Date.now())} remaining`,
+            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
+          }))}
+        />
+        <HomeBucket
+          title="Meetings within next hour"
+          count={nextHour.length}
+          tone="soon"
+          items={nextHour.map((s) => ({
+            href: `/meetings/${s.meeting.id}`,
+            name: s.meeting.name,
+            meta: `in ${fmtRemain(new Date(s.startAt).getTime() - Date.now())} · ${new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
+          }))}
+        />
+        <HomeBucket
+          title="Meetings within next 6 hours"
+          count={nextSix.length}
+          tone="later"
+          items={nextSix.map((s) => ({
+            href: `/meetings/${s.meeting.id}`,
+            name: s.meeting.name,
+            meta: new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
+          }))}
+        />
       </section>
 
       <section className="max-w-6xl mx-auto px-4 pb-8 grid md:grid-cols-3 gap-4">
@@ -176,5 +181,42 @@ export default async function Home() {
         OurHomegroup · One day at a time
       </footer>
     </div>
+  );
+}
+
+function HomeBucket({
+  title,
+  count,
+  tone,
+  items,
+}: {
+  title: string;
+  count: number;
+  tone: "live" | "soon" | "later";
+  items: { href: string; name: string; meta: string; where: string }[];
+}) {
+  const wrap =
+    tone === "live"
+      ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
+      : tone === "soon"
+        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+        : "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900";
+  return (
+    <details open className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2">
+      <summary className="cursor-pointer flex items-center justify-between text-sm font-semibold py-1">
+        <span>{title}</span>
+        <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800">{count}</span>
+      </summary>
+      <div className="mt-2 space-y-2">
+        {items.length === 0 && <p className="text-sm text-zinc-500 px-1 py-2">None right now.</p>}
+        {items.map((it) => (
+          <Link key={it.href + it.meta} href={it.href} className={`block rounded-xl border px-3 py-2.5 ${wrap}`}>
+            <div className="font-medium text-sm">{it.name}</div>
+            <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{it.meta}</div>
+            <div className="text-[11px] text-zinc-500 mt-0.5">{it.where}</div>
+          </Link>
+        ))}
+      </div>
+    </details>
   );
 }

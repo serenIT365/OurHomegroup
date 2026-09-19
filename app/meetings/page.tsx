@@ -51,7 +51,9 @@ function timeLabel(iso: string, tz: string) {
 }
 
 export default async function MeetingsListPage() {
-  const meetings = (await store.listMeetings("org_demo")).filter((m) => m.enabled !== false);
+  const meetings = (await store.listMeetings("org_demo")).filter(
+    (m) => m.enabled !== false && m.status !== "pending" && m.status !== "declined"
+  );
   const slots = upcomingSlots(meetings, new Date(), 8);
 
   function groups(list: MeetingSlot[]) {
@@ -88,9 +90,14 @@ export default async function MeetingsListPage() {
             <h1 className="text-xl font-semibold">Meetings</h1>
             <p className="text-xs text-zinc-500">Upcoming dates including recurrence · next 8 weeks</p>
           </div>
-          <Link href="/admin" className="text-xs text-teal-700 hover:underline">
-            Create meeting
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/meetings/submit" className="text-xs text-teal-700 hover:underline">
+              Submit a meeting
+            </Link>
+            <Link href="/admin" className="text-xs text-teal-700 hover:underline">
+              Admin
+            </Link>
+          </div>
         </div>
 
         {slots.length === 0 ? (

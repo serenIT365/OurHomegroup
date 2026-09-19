@@ -23,3 +23,9 @@ export function canBeChair(role?: Role | null) {
 export function canAssignChair(role?: Role | null) {
   return !!role && CHAIR_ASSIGNER_ROLES.includes(role);
 }
+
+export const ORG_ADMIN_ROLES: Role[] = ["admin", "poweruser", "superadmin"];
+
+export function canManageOrg(role?: Role | null) {
+  return !!role && ORG_ADMIN_ROLES.includes(role);
+}
