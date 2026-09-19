@@ -59,7 +59,7 @@ export function upcomingSlots(meetings: Meeting[], from = new Date(), weeks = 8)
   const slots: MeetingSlot[] = [];
   const horizon = from.getTime() + weeks * 7 * 24 * 60 * 60 * 1000;
   for (const meeting of meetings) {
-    if (meeting.enabled === false) continue;
+    if (meeting.enabled === false || meeting.status === "pending" || meeting.status === "declined") continue;
     const dur = meetingDurationMs(meeting);
     for (const iso of upcomingStarts(meeting, 52)) {
       const t = new Date(iso).getTime();

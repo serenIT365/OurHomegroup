@@ -36,6 +36,7 @@ function rowToMeeting(row: Record<string, unknown>): Meeting {
     recurrence: row.recurrence as Meeting["recurrence"],
     recurrenceRule: (row.recurrence_rule as string) || undefined,
     enabled: row.enabled === undefined || row.enabled === null ? true : Boolean(row.enabled),
+    status: ((row.status as Meeting["status"]) || "approved") as Meeting["status"],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -53,6 +54,7 @@ function rowToMember(row: Record<string, unknown>): UserProfile {
     recoveryAnniversary: (row.recovery_anniversary as string) || undefined,
     timezone: (row.timezone as string) || undefined,
     avatarUrl: (row.avatar_url as string) || undefined,
+    enabled: row.enabled === undefined || row.enabled === null ? true : Boolean(row.enabled),
     privacy: {
       hideLastName: Boolean(row.hide_last_name),
       hideEmail: Boolean(row.hide_email),
@@ -199,6 +201,8 @@ export const store = {
         end_at: input.endAt || null,
         recurrence: input.recurrence || "none",
         recurrence_rule: input.recurrenceRule || null,
+        enabled: input.enabled !== false,
+        status: input.status || "approved",
       })
       .select("*")
       .single();
@@ -262,6 +266,7 @@ export const store = {
     if (patch.timezone !== undefined) mapped.timezone = patch.timezone;
     if (patch.language !== undefined) mapped.language = patch.language;
     if (patch.enabled !== undefined) mapped.enabled = patch.enabled;
+    if (patch.status !== undefined) mapped.status = patch.status;
     let { data, error } = await getSupabase()
       .from("meetings")
       .update(mapped)
@@ -376,7 +381,12 @@ export const store = {
     organizationId?: string;
   }): Promise<UserProfile> {
     const existing = await this.getMember(input.id);
-    if (existing) return existing;
+    if (existing) {
+      if (input.email && !existing.email) {
+        return (await this.updateMember(input.id, { email: input.email, name: input.name || existing.name })) || existing;
+      }
+      return existing;
+    }
     return this.createMember({
       id: input.id,
       email: input.email,
@@ -402,6 +412,44 @@ export const store = {
       .maybeSingle();
     if (error) throw error;
     return data ? rowToMember(data) : null;
+  },
+
+  async updateMember(id: string, patch: Partial<UserProfile>): Promise<UserProfile | null> {
+    if (!isSupabaseConfigured()) {
+      const idx = memMembers.findIndex((m) => m.id === id);
+      if (idx === -1) return null;
+      memMembers[idx] = { ...memMembers[idx], ...patch };
+      return memMembers[idx];
+    }
+    const mapped: Record<string, unknown> = {};
+    if (patch.name !== undefined) mapped.name = patch.name;
+    if (patch.email !== undefined) mapped.email = patch.email;
+    if (patch.nickname !== undefined) mapped.nickname = patch.nickname;
+    if (patch.role !== undefined) mapped.role = patch.role;
+    if (patch.pronouns !== undefined) mapped.pronouns = patch.pronouns;
+    if (patch.enabled !== undefined) mapped.enabled = patch.enabled;
+    if (patch.privacy?.hideEmail !== undefined) mapped.hide_email = patch.privacy.hideEmail;
+    let { data, error } = await getSupabase().from("members").update(mapped).eq("id", id).select("*").maybeSingle();
+    if (error && mapped.enabled !== undefined && /enabled/i.test(error.message || "")) {
+      delete mapped.enabled;
+      const retry = await getSupabase().from("members").update(mapped).eq("id", id).select("*").maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) throw error;
+    return data ? rowToMember(data) : null;
+  },
+
+  async deleteMember(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured()) {
+      const idx = memMembers.findIndex((m) => m.id === id);
+      if (idx === -1) return false;
+      memMembers.splice(idx, 1);
+      return true;
+    }
+    const { error } = await getSupabase().from("members").delete().eq("id", id);
+    if (error) throw error;
+    return true;
   },
 
   async listAttendance(meetingId?: string, organizationId?: string): Promise<AttendanceRecord[]> {

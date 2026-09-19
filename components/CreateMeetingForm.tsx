@@ -18,8 +18,10 @@ const TIMEZONES = [
 
 export default function CreateMeetingForm({
   organizationId = "org_demo",
+  pending = false,
 }: {
   organizationId?: string;
+  pending?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -92,6 +94,8 @@ export default function CreateMeetingForm({
           zoomJoinUrl: form.zoomJoinUrl.trim() || undefined,
           chairId: form.chairId || undefined,
           hostId: form.chairId || undefined,
+          status: pending ? "pending" : "approved",
+          enabled: !pending,
         }),
       });
 
@@ -124,9 +128,13 @@ export default function CreateMeetingForm({
       className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-8 space-y-5"
     >
       <div>
-        <h3 className="text-lg font-semibold tracking-tight">Create Meeting</h3>
+        <h3 className="text-lg font-semibold tracking-tight">
+          {pending ? "Submit a meeting" : "Create Meeting"}
+        </h3>
         <p className="text-sm text-zinc-500 mt-1">
-          Schedule a new recovery or support meeting for this organization.
+          {pending
+            ? "Your request goes to the pending queue for an Admin or Power User to approve."
+            : "Schedule a new recovery or support meeting for this organization."}
         </p>
       </div>
 
