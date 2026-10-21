@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { parseZoomJoinUrl, webClientJoinUrl } from "@/lib/zoom";
 
 /**
@@ -18,9 +18,9 @@ export default function ZoomSdkJoin({
   autoEmbed?: boolean;
 }) {
   const valid = Boolean(joinUrl) && !joinUrl.includes("placeholder");
-  const name = (userName || "").trim() || "Guest";
+  const [displayName, setDisplayName] = useState((userName || "").trim() || "Guest");
   const parsed = useMemo(() => parseZoomJoinUrl(joinUrl), [joinUrl]);
-  const webUrl = valid ? webClientJoinUrl(joinUrl, name) : "";
+  const webUrl = valid ? webClientJoinUrl(joinUrl, displayName) : "";
 
   if (!valid) {
     return (
@@ -53,14 +53,20 @@ export default function ZoomSdkJoin({
           </a>
         </div>
       </div>
-      <p className="px-3 py-1 text-[11px] text-zinc-500">
-        Joining as <span className="text-zinc-200">{name}</span>
-        {parsed.password ? " with the stored passcode." : "."}
-      </p>
+      <div className="px-3 py-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+        <span>Joining as</span>
+        <input
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className="rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-100"
+          aria-label="Display name in Zoom"
+        />
+        <span>{parsed.password ? "with the stored passcode." : ""}</span>
+      </div>
       <div className="px-4 py-10 text-center text-sm text-zinc-400">
         <p>This meeting opens in Zoom so it stays on Workplace licensing.</p>
         <p className="mt-2 text-xs text-zinc-500">
-          Use Open in Zoom app or Open in new window. Camera and microphone stay off until you turn them on inside Zoom.
+          Edit the name above before you open. It is sent as your Zoom display name. Camera and microphone stay off until you turn them on inside Zoom.
         </p>
       </div>
     </div>
