@@ -68,21 +68,26 @@ export default async function AdminPage() {
         <section id="meetings" className="scroll-mt-20 space-y-8">
           <h2 className="text-xl font-semibold">Meetings</h2>
           <CreateMeetingForm organizationId="org_demo" />
-          <div>
-            <h3 className="text-lg font-semibold mb-2">
-              Directory ({meetings.length})
-              {meetings.filter((m) => m.status === "pending").length > 0 && (
-                <span className="ml-2 text-sm font-normal text-amber-600">
-                  {meetings.filter((m) => m.status === "pending").length} pending
-                </span>
-              )}
-            </h3>
-          <p className="text-xs text-zinc-500 mb-3">
-            Edit details, disable/enable listing, or delete. Optional SQL:
-            <code className="ml-1">ALTER TABLE meetings ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;</code>
-          </p>
-          <AdminMeetingsManager meetings={meetings} />
-          </div>
+          <details className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">
+                Directory ({meetings.length})
+                {meetings.filter((m) => m.status === "pending").length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-amber-600">
+                    {meetings.filter((m) => m.status === "pending").length} pending
+                  </span>
+                )}
+              </h3>
+              <span className="text-xs text-zinc-500">Show / hide</span>
+            </summary>
+            <div className="px-4 pb-4">
+              <p className="text-xs text-zinc-500 mb-3">
+                Edit details, disable/enable listing, or delete. Optional SQL:
+                <code className="ml-1">ALTER TABLE meetings ADD COLUMN IF NOT EXISTS enabled boolean DEFAULT true;</code>
+              </p>
+              <AdminMeetingsManager meetings={meetings} />
+            </div>
+          </details>
         </section>
 
         <section id="users" className="scroll-mt-20 space-y-4">
