@@ -268,6 +268,31 @@ function EditForm({
       </label>
       <label className="text-xs space-y-1">
         <span>End (optional)</span>
+        <div className="flex flex-wrap gap-1 mb-1">
+          {[
+            { label: "1 hr", hours: 1 },
+            { label: "1.5 hr", hours: 1.5 },
+            { label: "2 hr", hours: 2 },
+            { label: "24 hr", hours: 24 },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              className="rounded border px-2 py-0.5 text-[11px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                if (!form.startAt) return;
+                const start = new Date(form.startAt);
+                if (Number.isNaN(start.getTime())) return;
+                const end = new Date(start.getTime() + preset.hours * 60 * 60 * 1000);
+                const pad = (n: number) => String(n).padStart(2, "0");
+                const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
+                set("endAt", local);
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <input type="datetime-local" className="w-full rounded-lg border px-3 py-2 text-sm bg-transparent" value={form.endAt} onChange={(e) => set("endAt", e.target.value)} />
       </label>
       <label className="text-xs space-y-1">

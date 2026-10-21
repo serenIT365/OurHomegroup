@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { parseZoomJoinUrl, webClientJoinUrl } from "@/lib/zoom";
 
 /**
- * Workplace Zoom stays on ourhomegroup.com via same-origin /zoom-client.html
- * (Meeting SDK Client View in an isolated iframe — not React 19).
+ * Workplace Zoom opens outside the shell.
+ * Embedded Meeting SDK is skipped: unpublished SDK apps return 4011
+ * when the meeting is hosted by any Zoom account other than the SDK owner.
  */
 export default function ZoomSdkJoin({
   joinUrl,
   userName,
-  isHost,
 }: {
   joinUrl: string;
   userName?: string;
@@ -18,44 +18,9 @@ export default function ZoomSdkJoin({
   autoEmbed?: boolean;
 }) {
   const valid = Boolean(joinUrl) && !joinUrl.includes("placeholder");
-  const name = (userName || "").trim() || "Guest";
+  const [displayName, setDisplayName] = useState((userName || "").trim() || "Guest");
   const parsed = useMemo(() => parseZoomJoinUrl(joinUrl), [joinUrl]);
-  const webUrl = valid ? webClientJoinUrl(joinUrl, name) : "";
-  const [iframeSrc, setIframeSrc] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!valid || !parsed.meetingNumber) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/zoom/signature", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            meetingNumber: parsed.meetingNumber,
-            role: isHost ? 1 : 0,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Could not sign Zoom JWT");
-        const qs = new URLSearchParams({
-          mn: parsed.meetingNumber,
-          pwd: parsed.password || "",
-          name,
-          signature: data.signature,
-          sdkKey: data.sdkKey,
-          leaveUrl: typeof window !== "undefined" ? `${window.location.origin}/meetings` : "/meetings",
-        });
-        if (!cancelled) setIframeSrc(`/zoom-client.html?${qs.toString()}`);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Zoom sign failed");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [valid, parsed.meetingNumber, parsed.password, name, isHost]);
+  const webUrl = valid ? webClientJoinUrl(joinUrl, displayName) : "";
 
   if (!valid) {
     return (
@@ -88,26 +53,21 @@ export default function ZoomSdkJoin({
           </a>
         </div>
       </div>
-      <p className="px-3 py-1 text-[11px] text-zinc-500">
-        Joining as <span className="text-zinc-200">{name}</span> with the stored passcode.
-      </p>
-      {error && <p className="px-3 pb-2 text-xs text-amber-300">{error}</p>}
-      <div className="relative w-full bg-black" style={{ paddingTop: "56.25%" }}>
-        {iframeSrc ? (
-          <iframe
-            title="OurHomegroup Zoom meeting"
-            src={iframeSrc}
-            className="absolute inset-0 h-full w-full border-0"
-            allow="camera; microphone; display-capture; autoplay; fullscreen; clipboard-write"
-            allowFullScreen
-          />
-        ) : (
-          !error && (
-            <p className="absolute inset-0 flex items-center justify-center text-sm text-zinc-500">
-              Preparing Zoom on this page…
-            </p>
-          )
-        )}
+      <div className="px-3 py-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+        <span>Joining as</span>
+        <input
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          className="rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-100"
+          aria-label="Display name in Zoom"
+        />
+        <span>{parsed.password ? "with the stored passcode." : ""}</span>
+      </div>
+      <div className="px-4 py-10 text-center text-sm text-zinc-400">
+        <p>This meeting opens in Zoom so it stays on Workplace licensing.</p>
+        <p className="mt-2 text-xs text-zinc-500">
+          Edit the name above before you open. It is sent as your Zoom display name. Camera and microphone stay off until you turn them on inside Zoom.
+        </p>
       </div>
     </div>
   );

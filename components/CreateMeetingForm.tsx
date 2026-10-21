@@ -47,6 +47,7 @@ export default function CreateMeetingForm({
     timezone: "America/New_York",
     language: "en",
     startAt: "",
+    endAt: "",
     recurrence: "weekly" as "none" | "daily" | "weekly" | "monthly",
     zoomJoinUrl: "",
     chairId: "",
@@ -86,6 +87,7 @@ export default function CreateMeetingForm({
           timezone: form.timezone,
           language: form.language,
           startAt: new Date(form.startAt).toISOString(),
+          endAt: form.endAt ? new Date(form.endAt).toISOString() : undefined,
           recurrence: form.recurrence,
           recurrenceRule:
             form.recurrence === "daily" || form.recurrence === "weekly"
@@ -113,6 +115,7 @@ export default function CreateMeetingForm({
         type: "",
         zoomJoinUrl: "",
         startAt: "",
+        endAt: "",
       }));
       router.refresh();
     } catch (err) {
@@ -220,6 +223,43 @@ export default function CreateMeetingForm({
             onChange={(e) => update("startAt", e.target.value)}
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium">Duration</span>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "1 hr", hours: 1 },
+              { label: "1.5 hr", hours: 1.5 },
+              { label: "2 hr", hours: 2 },
+              { label: "24 hr", hours: 24 },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                onClick={() => {
+                  if (!form.startAt) return;
+                  const start = new Date(form.startAt);
+                  if (Number.isNaN(start.getTime())) return;
+                  const end = new Date(start.getTime() + preset.hours * 60 * 60 * 1000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`;
+                  update("endAt", local);
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="datetime-local"
+            value={form.endAt || ""}
+            onChange={(e) => update("endAt", e.target.value)}
+            className="mt-2 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            placeholder="End time (optional)"
+          />
+          <p className="text-[11px] text-zinc-500">24 hr sets an open-house window from the start time.</p>
         </label>
 
         <label className="block space-y-1.5">
