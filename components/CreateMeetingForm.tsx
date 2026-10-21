@@ -47,6 +47,7 @@ export default function CreateMeetingForm({
     timezone: "America/New_York",
     language: "en",
     startAt: "",
+    endAt: "",
     recurrence: "weekly" as "none" | "daily" | "weekly" | "monthly",
     zoomJoinUrl: "",
     chairId: "",
@@ -114,6 +115,7 @@ export default function CreateMeetingForm({
         type: "",
         zoomJoinUrl: "",
         startAt: "",
+        endAt: "",
       }));
       router.refresh();
     } catch (err) {
