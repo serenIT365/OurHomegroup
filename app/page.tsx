@@ -114,24 +114,25 @@ export default async function Home() {
         </div>
       </nav>
 
-      <section className="relative min-h-[520px] flex items-end">
-        <img src="/home-still.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
-        <div className="relative w-full max-w-6xl mx-auto px-4 py-12">
+      <section className="relative min-h-[680px] flex items-end pb-36">
+        <img src="/home-still.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_40%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1016] via-transparent to-black/20" />
+        <div className="relative w-full max-w-6xl mx-auto px-4 pb-8">
           <p className="text-teal-200 text-sm mb-2">Support · Share · Stay Strong</p>
-          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-xl">
+          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-xl leading-tight">
             Find your people.<br />
             <span className="text-teal-400">Stay for the meeting.</span>
           </h2>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/meetings" className="inline-block bg-teal-600 hover:bg-teal-500 px-6 py-2.5 rounded-xl font-medium">
-              Browse meetings
+            <Link href="/meetings" className="inline-block bg-white text-zinc-900 hover:bg-zinc-100 px-5 py-2.5 rounded-xl font-medium">
+              Find a meeting
             </Link>
-            <Link href="/meetings/submit" className="inline-block bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl font-medium">
-              Submit a meeting
+            <Link href="/meetings/submit" className="inline-block border border-white/30 bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl font-medium">
+              Learn more
             </Link>
           </div>
-          <blockquote className="mt-6 max-w-sm rounded-2xl border border-white/15 bg-black/35 backdrop-blur px-5 py-4 text-white/90 italic">
+          <blockquote className="mt-6 max-w-sm rounded-2xl border border-white/15 bg-black/30 backdrop-blur px-5 py-4 text-white/90 italic">
             “{quote.t}”
             <footer className="not-italic text-sm text-white/60 mt-2">— {quote.a}</footer>
           </blockquote>
