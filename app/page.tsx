@@ -130,6 +130,7 @@ export default async function Home() {
 
       <section className="max-w-3xl mx-auto px-4 py-8 space-y-3">
         {marathon.length > 0 && (
+        <div className="w-full md:w-1/2">
         <HomeBucket
           title="24HR Meetings"
           count={marathon.length}
@@ -137,10 +138,10 @@ export default async function Home() {
           items={marathon.map((s) => ({
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
-            meta: `Started ${fmtTime(s.startAt, s.meeting.timezone)} · ${fmtRemain(s.endAt - Date.now())} remaining`,
-            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
+            meta: `Started ${fmtTime(s.startAt, s.meeting.timezone)}`,
           }))}
         />
+        </div>
         )}
         <HomeBucket
           title="Meetings in progress"
@@ -150,7 +151,6 @@ export default async function Home() {
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
             meta: `Started ${fmtTime(s.startAt, s.meeting.timezone)} · ${fmtRemain(s.endAt - Date.now())} remaining`,
-            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
         <HomeBucket
@@ -161,7 +161,6 @@ export default async function Home() {
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
             meta: `in ${fmtRemain(new Date(s.startAt).getTime() - Date.now())} · ${fmtTime(s.startAt, s.meeting.timezone)}`,
-            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
         <HomeBucket
@@ -172,7 +171,6 @@ export default async function Home() {
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
             meta: fmtTime(s.startAt, s.meeting.timezone),
-            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
       </section>
@@ -221,11 +219,11 @@ function HomeBucket({
   title: string;
   count: number;
   tone: "live" | "soon" | "later" | "marathon";
-  items: { href: string; name: string; meta: string; where: string }[];
+  items: { href: string; name: string; meta: string }[];
 }) {
   const wrap =
     tone === "marathon"
-      ? "bg-yellow-100 dark:bg-yellow-950/40 border-yellow-400 dark:border-yellow-700"
+      ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-300 dark:border-zinc-700"
       : tone === "live"
         ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
         : tone === "soon"
@@ -234,8 +232,8 @@ function HomeBucket({
   return (
     <details open className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2">
       <summary className="cursor-pointer flex items-center justify-between text-sm font-semibold py-1">
-        <span className={tone === "marathon" ? "text-yellow-700 dark:text-yellow-300" : ""}>{title}</span>
-        <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${tone === "marathon" ? "bg-yellow-200 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100" : "bg-zinc-100 dark:bg-zinc-800"}`}>{count}</span>
+        <span className={tone === "marathon" ? "text-yellow-600 dark:text-yellow-400" : ""}>{title}</span>
+        <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${tone === "marathon" ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-100" : "bg-zinc-100 dark:bg-zinc-800"}`}>{count}</span>
       </summary>
       <div className="mt-2 space-y-2">
         {items.length === 0 && <p className="text-sm text-zinc-500 px-1 py-2">None right now.</p>}
@@ -243,7 +241,6 @@ function HomeBucket({
           <Link key={it.href + it.meta} href={it.href} className={`block rounded-xl border px-3 py-2.5 ${wrap}`}>
             <div className="font-medium text-sm">{it.name}</div>
             <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{it.meta}</div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">{it.where}</div>
           </Link>
         ))}
       </div>
