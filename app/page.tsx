@@ -26,9 +26,23 @@ function fmtRemain(ms: number) {
   return `${d} day${d === 1 ? "" : "s"}`;
 }
 
+function fmtTime(iso: string, timeZone = "America/New_York") {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  });
+}
+
+function is24Hour(startAt: string, endAt: number) {
+  const hours = (endAt - new Date(startAt).getTime()) / (60 * 60 * 1000);
+  return hours >= 20 && hours <= 26;
+}
+
 export default async function Home() {
   const quote = QUOTES[new Date().getDate() % QUOTES.length];
   let live: ReturnType<typeof upcomingSlots> = [];
+  let marathon: ReturnType<typeof upcomingSlots> = [];
   let nextHour: ReturnType<typeof upcomingSlots> = [];
   let nextSix: ReturnType<typeof upcomingSlots> = [];
   try {
@@ -37,18 +51,19 @@ export default async function Home() {
     );
     const now = new Date();
     const nowMs = now.getTime();
-    const slots = upcomingSlots(meetings, new Date(nowMs - 2 * 60 * 60 * 1000), 1);
+    const slots = upcomingSlots(meetings, new Date(nowMs - 26 * 60 * 60 * 1000), 1);
+    marathon = slots.filter((s) => is24Hour(s.startAt, s.endAt) && new Date(s.startAt).getTime() <= nowMs && s.endAt > nowMs);
     live = slots.filter((s) => {
       const t = new Date(s.startAt).getTime();
-      return t <= nowMs && s.endAt > nowMs;
+      return t <= nowMs && s.endAt > nowMs && !is24Hour(s.startAt, s.endAt);
     });
     nextHour = slots.filter((s) => {
       const t = new Date(s.startAt).getTime();
-      return t > nowMs && t <= nowMs + 60 * 60 * 1000;
+      return t > nowMs && t <= nowMs + 60 * 60 * 1000 && !is24Hour(s.startAt, s.endAt);
     });
     nextSix = slots.filter((s) => {
       const t = new Date(s.startAt).getTime();
-      return t > nowMs + 60 * 60 * 1000 && t <= nowMs + 6 * 60 * 60 * 1000;
+      return t > nowMs + 60 * 60 * 1000 && t <= nowMs + 6 * 60 * 60 * 1000 && !is24Hour(s.startAt, s.endAt);
     });
   } catch {
     /* store optional on home */
@@ -114,6 +129,19 @@ export default async function Home() {
       </section>
 
       <section className="max-w-3xl mx-auto px-4 py-8 space-y-3">
+        {marathon.length > 0 && (
+        <HomeBucket
+          title="24HR Meetings"
+          count={marathon.length}
+          tone="marathon"
+          items={marathon.map((s) => ({
+            href: `/meetings/${s.meeting.id}`,
+            name: s.meeting.name,
+            meta: `Started ${fmtTime(s.startAt, s.meeting.timezone)} · ${fmtRemain(s.endAt - Date.now())} remaining`,
+            where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
+          }))}
+        />
+        )}
         <HomeBucket
           title="Meetings in progress"
           count={live.length}
@@ -121,7 +149,7 @@ export default async function Home() {
           items={live.map((s) => ({
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
-            meta: `Started ${new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${fmtRemain(s.endAt - Date.now())} remaining`,
+            meta: `Started ${fmtTime(s.startAt, s.meeting.timezone)} · ${fmtRemain(s.endAt - Date.now())} remaining`,
             where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
@@ -132,7 +160,7 @@ export default async function Home() {
           items={nextHour.map((s) => ({
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
-            meta: `in ${fmtRemain(new Date(s.startAt).getTime() - Date.now())} · ${new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+            meta: `in ${fmtRemain(new Date(s.startAt).getTime() - Date.now())} · ${fmtTime(s.startAt, s.meeting.timezone)}`,
             where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
@@ -143,7 +171,7 @@ export default async function Home() {
           items={nextSix.map((s) => ({
             href: `/meetings/${s.meeting.id}`,
             name: s.meeting.name,
-            meta: new Date(s.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+            meta: fmtTime(s.startAt, s.meeting.timezone),
             where: s.meeting.provider === "zoom" ? "Zoom" : "Online",
           }))}
         />
@@ -192,20 +220,22 @@ function HomeBucket({
 }: {
   title: string;
   count: number;
-  tone: "live" | "soon" | "later";
+  tone: "live" | "soon" | "later" | "marathon";
   items: { href: string; name: string; meta: string; where: string }[];
 }) {
   const wrap =
-    tone === "live"
-      ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
-      : tone === "soon"
-        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
-        : "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900";
+    tone === "marathon"
+      ? "bg-yellow-100 dark:bg-yellow-950/40 border-yellow-400 dark:border-yellow-700"
+      : tone === "live"
+        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900"
+        : tone === "soon"
+          ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+          : "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900";
   return (
     <details open className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2">
       <summary className="cursor-pointer flex items-center justify-between text-sm font-semibold py-1">
-        <span>{title}</span>
-        <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800">{count}</span>
+        <span className={tone === "marathon" ? "text-yellow-700 dark:text-yellow-300" : ""}>{title}</span>
+        <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${tone === "marathon" ? "bg-yellow-200 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-100" : "bg-zinc-100 dark:bg-zinc-800"}`}>{count}</span>
       </summary>
       <div className="mt-2 space-y-2">
         {items.length === 0 && <p className="text-sm text-zinc-500 px-1 py-2">None right now.</p>}
