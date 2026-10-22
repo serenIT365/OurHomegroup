@@ -114,18 +114,15 @@ export default async function Home() {
         </div>
       </nav>
 
-      <section className="relative min-h-[420px] flex items-end">
-        <img src="/home-still.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1016] via-black/40 to-black/20" />
-        <div className="relative max-w-6xl mx-auto px-4 py-12">
+      <section className="relative min-h-[520px] flex items-end">
+        <img src="/home-still.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
+        <div className="relative w-full max-w-6xl mx-auto px-4 py-12">
           <p className="text-teal-200 text-sm mb-2">Support · Share · Stay Strong</p>
-          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight max-w-xl">
-            Find your people. <span className="text-teal-400">Stay for the meeting.</span>
+          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white max-w-xl">
+            Find your people.<br />
+            <span className="text-teal-400">Stay for the meeting.</span>
           </h2>
-          <blockquote className="mt-5 max-w-xl text-lg text-white/90 italic">
-            “{quote.t}”
-            <footer className="not-italic text-sm text-white/60 mt-1">— {quote.a}</footer>
-          </blockquote>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/meetings" className="inline-block bg-teal-600 hover:bg-teal-500 px-6 py-2.5 rounded-xl font-medium">
               Browse meetings
@@ -134,6 +131,10 @@ export default async function Home() {
               Submit a meeting
             </Link>
           </div>
+          <blockquote className="mt-6 max-w-sm rounded-2xl border border-white/15 bg-black/35 backdrop-blur px-5 py-4 text-white/90 italic">
+            “{quote.t}”
+            <footer className="not-italic text-sm text-white/60 mt-2">— {quote.a}</footer>
+          </blockquote>
         </div>
       </section>
 

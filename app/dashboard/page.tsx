@@ -70,12 +70,20 @@ export default async function DashboardPage() {
           {meetings.map((m) => (
             <div
               key={m.id}
-              className="bg-white dark:bg-zinc-900 rounded-2xl border p-5 flex flex-wrap items-center justify-between gap-4"
+              className="bg-[#111820] rounded-2xl border border-zinc-800 p-5 flex flex-wrap items-center justify-between gap-4"
             >
               <div>
                 <div className="font-medium">{m.name}</div>
                 <div className="text-sm text-zinc-500">
-                  {new Date(m.startAt).toLocaleString()} · {m.provider}
+                  {new Date(m.startAt).toLocaleString("en-US", {
+                    timeZone: m.timezone || "America/New_York",
+                    month: "numeric",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}{" "}
+                  · {m.provider}
                 </div>
               </div>
               <div className="flex gap-3">
