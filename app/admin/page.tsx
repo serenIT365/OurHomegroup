@@ -2,7 +2,7 @@ import { store } from "@/lib/store";
 import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import AdminMeetingsManager from "@/components/AdminMeetingsManager";
-import AdminUsersManager from "@/components/AdminUsersManager";
+import AdminTagsManager from "@/components/AdminTagsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +11,13 @@ export default async function AdminPage() {
   let meetings = [] as Awaited<ReturnType<typeof store.listMeetings>>;
   let members = [] as Awaited<ReturnType<typeof store.listMembers>>;
   let attendance = [] as Awaited<ReturnType<typeof store.listAttendance>>;
+  let tags: string[] = [];
   try {
     orgs = await store.listOrgs();
     meetings = await store.listMeetings("org_demo");
     members = await store.listMembers("org_demo");
     attendance = await store.listAttendance(undefined, "org_demo");
+    tags = (await store.listTags("org_demo")).map((t) => t.name);
   } catch (e) {
     console.error("[admin] store error", e);
   }
@@ -62,6 +64,7 @@ export default async function AdminPage() {
 
         <nav className="flex gap-2 text-sm">
           <a href="#meetings" className="px-3 py-1.5 rounded-full bg-teal-600 text-white">Meetings</a>
+          <a href="#tags" className="px-3 py-1.5 rounded-full border">Tags</a>
           <a href="#users" className="px-3 py-1.5 rounded-full border">Users</a>
         </nav>
 
@@ -88,6 +91,15 @@ export default async function AdminPage() {
               <AdminMeetingsManager meetings={meetings} />
             </div>
           </details>
+        </section>
+
+        <section id="tags" className="scroll-mt-20 space-y-3">
+          <h2 className="text-xl font-semibold">Tags</h2>
+          <AdminTagsManager initial={tags} />
+          <p className="text-[11px] text-zinc-500">
+            Run once in Supabase:
+            <code className="ml-1">CREATE TABLE IF NOT EXISTS tags (id text primary key, organization_id text, name text, created_at timestamptz default now()); ALTER TABLE meetings ADD COLUMN IF NOT EXISTS tags text[] DEFAULT &#123;&#125;;</code>
+          </p>
         </section>
 
         <section id="users" className="scroll-mt-20 space-y-4">

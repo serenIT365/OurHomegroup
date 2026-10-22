@@ -36,7 +36,8 @@ export interface Meeting {
   organizationId: string;
   name: string;
   description?: string;
-  type?: string; // e.g. "Women's Recovery", "Veterans"
+  type?: string; // legacy single topic; prefer tags
+  tags?: string[];
   hostId?: string;
   chairId?: string;
   coHostIds?: string[];
@@ -72,6 +73,13 @@ export interface AttendanceRecord {
   durationSeconds?: number;
   device?: string;
   role: Role;
+}
+
+export interface Tag {
+  id: string;
+  organizationId: string;
+  name: string;
+  createdAt: string;
 }
 
 export interface MeetingOccurrence {

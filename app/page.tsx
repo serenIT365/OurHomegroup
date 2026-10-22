@@ -62,6 +62,7 @@ export default async function Home() {
       frequency: s.meeting.recurrence || "none",
       description: s.meeting.description,
       provider: s.meeting.provider,
+      tags: s.meeting.tags,
     });
     marathonItems = slots
       .filter((s) => is24Hour(s.startAt, s.endAt) && new Date(s.startAt).getTime() <= nowMs && s.endAt > nowMs)

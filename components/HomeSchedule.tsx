@@ -12,6 +12,7 @@ export type HomeItem = {
   frequency?: string;
   description?: string;
   provider?: string;
+  tags?: string[];
 };
 
 export default function HomeSchedule({
@@ -51,8 +52,8 @@ export default function HomeSchedule({
             <p className="mt-1 text-xs text-zinc-400">{open.meta}</p>
             <dl className="mt-4 space-y-2 text-sm">
               <div>
-                <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Type</dt>
-                <dd>{open.type || "Open meeting"}</dd>
+                <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Tags</dt>
+                <dd>{open.tags && open.tags.length ? open.tags.join(", ") : open.type || "—"}</dd>
               </div>
               <div>
                 <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Frequency</dt>
