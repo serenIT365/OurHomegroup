@@ -31,9 +31,7 @@ export default function HomeSchedule({
     <>
       <section className="max-w-3xl mx-auto px-4 py-8 space-y-3">
         {marathon.length > 0 && (
-          <div className="w-full md:w-1/2">
-            <Bucket title="24HR Meetings" tone="marathon" items={marathon} defaultOpen onPick={setOpen} />
-          </div>
+          <Bucket title="24HR Meetings" tone="marathon" items={marathon} defaultOpen onPick={setOpen} />
         )}
         <Bucket title="Meetings in progress" tone="live" items={live} defaultOpen onPick={setOpen} />
         <Bucket title="Meetings within next hour" tone="soon" items={nextHour} onPick={setOpen} />
