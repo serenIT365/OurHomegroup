@@ -29,7 +29,7 @@ export default function HomeSchedule({
 
   return (
     <>
-      <section className="max-w-3xl mx-auto px-4 py-8 space-y-3">
+      <section className="relative z-10 -mt-28 max-w-3xl mx-auto px-4 pb-10 space-y-2">
         {marathon.length > 0 && (
           <Bucket title="24HR Meetings" tone="marathon" items={marathon} defaultOpen onPick={setOpen} />
         )}
@@ -100,7 +100,7 @@ function Bucket({
           ? "bg-amber-950/30 border-amber-900"
           : "bg-sky-950/30 border-sky-900";
   return (
-    <details open={defaultOpen} className="rounded-2xl border border-zinc-800 bg-[#0f141b] px-3 py-2">
+    <details open={defaultOpen} className="rounded-2xl border border-white/10 bg-black/45 backdrop-blur px-3 py-2">
       <summary className="cursor-pointer flex items-center justify-between text-sm font-semibold py-1">
         <span className={tone === "marathon" ? "text-yellow-400" : ""}>{title}</span>
         <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${tone === "marathon" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-800"}`}>
