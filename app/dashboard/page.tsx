@@ -19,8 +19,8 @@ export default async function DashboardPage() {
   const attendance = await store.listAttendance(undefined, "org_demo");
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b bg-white dark:bg-zinc-900">
+    <div className="min-h-screen bg-[#0b1016] text-zinc-100">
+      <header className="border-b border-zinc-800 bg-[#111820]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 bg-teal-600 rounded-xl flex items-center justify-center text-white font-bold">
