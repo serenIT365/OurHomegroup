@@ -2,7 +2,7 @@
  * Data access. Uses Supabase when env vars are set; otherwise in-memory fallback.
  */
 import { v4 as uuid } from "uuid";
-import type { Organization, Meeting, AttendanceRecord, UserProfile, MeetingOccurrence } from "./types";
+import type { Organization, Meeting, AttendanceRecord, UserProfile, MeetingOccurrence, Tag } from "./types";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
 
 const DEFAULT_PRIVACY = {
@@ -19,6 +19,7 @@ function rowToMeeting(row: Record<string, unknown>): Meeting {
     name: row.name as string,
     description: (row.description as string) || undefined,
     type: (row.type as string) || undefined,
+    tags: Array.isArray(row.tags) ? (row.tags as string[]) : typeof row.tags === "string" && row.tags ? [row.tags as string] : undefined,
     hostId: (row.host_id as string) || (row.chair_id as string) || undefined,
     chairId: (row.chair_id as string) || (row.host_id as string) || undefined,
     provider: row.provider as Meeting["provider"],
@@ -100,7 +101,11 @@ const memOrgs: Organization[] = [
     createdAt: new Date().toISOString(),
   },
 ];
-const memMeetings: Meeting[] = [];
+const memTags: Tag[] = [
+  { id: "tag_open", organizationId: "org_demo", name: "Open", createdAt: new Date().toISOString() },
+  { id: "tag_women", organizationId: "org_demo", name: "Women", createdAt: new Date().toISOString() },
+  { id: "tag_veterans", organizationId: "org_demo", name: "Veterans", createdAt: new Date().toISOString() },
+];
 const memMembers: UserProfile[] = [];
 const memAttendance: AttendanceRecord[] = [];
 
@@ -120,6 +125,54 @@ const memOccurrences: MeetingOccurrence[] = [];
 
 
 export const store = {
+  async listTags(organizationId: string): Promise<Tag[]> {
+    if (!isSupabaseConfigured()) return memTags.filter((t) => t.organizationId === organizationId);
+    const { data, error } = await getSupabase()
+      .from("tags")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("name");
+    if (error) {
+      if (/relation .*tags.* does not exist/i.test(error.message || "")) return [];
+      throw error;
+    }
+    return (data || []).map((row) => ({
+      id: row.id as string,
+      organizationId: row.organization_id as string,
+      name: row.name as string,
+      createdAt: row.created_at as string,
+    }));
+  },
+
+  async createTag(organizationId: string, name: string): Promise<Tag> {
+    const clean = name.trim();
+    const now = new Date().toISOString();
+    if (!isSupabaseConfigured()) {
+      const existing = memTags.find((t) => t.organizationId === organizationId && t.name.toLowerCase() === clean.toLowerCase());
+      if (existing) return existing;
+      const tag: Tag = { id: `tag_${uuid().slice(0, 8)}`, organizationId, name: clean, createdAt: now };
+      memTags.push(tag);
+      return tag;
+    }
+    const { data, error } = await getSupabase()
+      .from("tags")
+      .insert({ id: `tag_${uuid().slice(0, 8)}`, organization_id: organizationId, name: clean })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return { id: data.id, organizationId: data.organization_id, name: data.name, createdAt: data.created_at };
+  },
+
+  async deleteTag(organizationId: string, name: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      const idx = memTags.findIndex((t) => t.organizationId === organizationId && t.name === name);
+      if (idx >= 0) memTags.splice(idx, 1);
+      return;
+    }
+    const { error } = await getSupabase().from("tags").delete().eq("organization_id", organizationId).eq("name", name);
+    if (error) throw error;
+  },
+
   async listOrgs(): Promise<Organization[]> {
     if (!isSupabaseConfigured()) return memOrgs;
     const { data, error } = await getSupabase().from("organizations").select("*");
@@ -184,7 +237,8 @@ export const store = {
         organization_id: input.organizationId,
         name: input.name,
         description: input.description || null,
-        type: input.type || null,
+        type: input.type || (input.tags && input.tags[0]) || null,
+        tags: input.tags || [],
         host_id: input.hostId || input.chairId || null,
         chair_id: input.chairId || input.hostId || null,
         provider: input.provider,
@@ -212,7 +266,8 @@ export const store = {
         organization_id: input.organizationId,
         name: input.name,
         description: input.description || null,
-        type: input.type || null,
+        type: input.type || (input.tags && input.tags[0]) || null,
+        tags: input.tags || [],
         host_id: input.hostId || input.chairId || null,
         chair_id: input.chairId || input.hostId || null,
         provider: input.provider,
@@ -250,6 +305,7 @@ export const store = {
     if (patch.name !== undefined) mapped.name = patch.name;
     if (patch.description !== undefined) mapped.description = patch.description;
     if (patch.type !== undefined) mapped.type = patch.type;
+    if (patch.tags !== undefined) mapped.tags = patch.tags;
     if (patch.provider !== undefined) mapped.provider = patch.provider;
     if (patch.zoomJoinUrl !== undefined) mapped.zoom_join_url = patch.zoomJoinUrl;
     if (patch.capacity !== undefined) mapped.capacity = patch.capacity;

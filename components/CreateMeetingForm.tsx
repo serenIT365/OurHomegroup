@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { MeetingProvider, UserProfile } from "@/lib/types";
+import TagPicker from "@/components/TagPicker";
 import { canBeChair } from "@/lib/roles";
 import WeekdayPicker from "@/components/WeekdayPicker";
 import { ALL_DAYS, encodeWeekdays } from "@/lib/weekdays";
@@ -39,6 +39,7 @@ export default function CreateMeetingForm({
     name: "",
     description: "",
     type: "",
+    tags: [] as string[],
     provider: "livekit" as MeetingProvider,
     capacity: 40,
     waitingRoomEnabled: true,
@@ -51,6 +52,7 @@ export default function CreateMeetingForm({
     recurrence: "weekly" as "none" | "daily" | "weekly" | "monthly",
     zoomJoinUrl: "",
     chairId: "",
+    password: "",
     weekdays: [...ALL_DAYS] as number[],
   });
 
@@ -79,6 +81,7 @@ export default function CreateMeetingForm({
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           type: form.type.trim() || undefined,
+          tags: form.tags,
           provider: form.provider,
           capacity: Number(form.capacity) || 40,
           waitingRoomEnabled: form.waitingRoomEnabled,
@@ -114,6 +117,7 @@ export default function CreateMeetingForm({
         description: "",
         type: "",
         zoomJoinUrl: "",
+        password: "",
         startAt: "",
         endAt: "",
       }));
@@ -175,15 +179,9 @@ export default function CreateMeetingForm({
           />
         </label>
 
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Type / topic</span>
-          <input
-            value={form.type}
-            onChange={(e) => update("type", e.target.value)}
-            placeholder="Women's Recovery, Veterans, Open…"
-            className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-        </label>
+        <div className="md:col-span-2">
+          <TagPicker value={form.tags} onChange={(tags) => update("tags", tags)} />
+        </div>
 
         <label className="block space-y-1.5 md:col-span-2">
           <span className="text-sm font-medium">Chairperson</span>
@@ -325,7 +323,14 @@ export default function CreateMeetingForm({
         </label>
 
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Capacity</span>
+          <span className="text-sm font-medium">Meeting password (optional)</span>
+          <input
+            value={form.password}
+            onChange={(e) => update("password", e.target.value)}
+            placeholder="Shared with attendees"
+            className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </label>
           <input
             type="number"
             min={1}
