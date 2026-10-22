@@ -33,8 +33,8 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b bg-white dark:bg-zinc-900 sticky top-0 z-40">
+    <div className="min-h-screen bg-[#0b1016] text-zinc-100">
+      <header className="border-b border-zinc-800 bg-[#111820] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="font-semibold tracking-tight">
             OurHomegroup Admin

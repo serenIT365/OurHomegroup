@@ -68,8 +68,8 @@ export default async function MeetingsListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b bg-white/90 dark:bg-zinc-900/90 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-[#0b1016] text-zinc-100">
+      <header className="border-b border-zinc-800 bg-[#0b1016]/90 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 h-12 flex items-center justify-between">
           <Link href="/" className="font-semibold tracking-tight text-sm">
             OurHomegroup

@@ -19,8 +19,8 @@ export default async function DashboardPage() {
   const attendance = await store.listAttendance(undefined, "org_demo");
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b bg-white dark:bg-zinc-900">
+    <div className="min-h-screen bg-[#0b1016] text-zinc-100">
+      <header className="border-b border-zinc-800 bg-[#111820]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 bg-teal-600 rounded-xl flex items-center justify-center text-white font-bold">
@@ -70,12 +70,20 @@ export default async function DashboardPage() {
           {meetings.map((m) => (
             <div
               key={m.id}
-              className="bg-white dark:bg-zinc-900 rounded-2xl border p-5 flex flex-wrap items-center justify-between gap-4"
+              className="bg-[#111820] rounded-2xl border border-zinc-800 p-5 flex flex-wrap items-center justify-between gap-4"
             >
               <div>
                 <div className="font-medium">{m.name}</div>
                 <div className="text-sm text-zinc-500">
-                  {new Date(m.startAt).toLocaleString()} · {m.provider}
+                  {new Date(m.startAt).toLocaleString("en-US", {
+                    timeZone: m.timezone || "America/New_York",
+                    month: "numeric",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}{" "}
+                  · {m.provider}
                 </div>
               </div>
               <div className="flex gap-3">

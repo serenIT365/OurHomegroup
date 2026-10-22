@@ -9,36 +9,69 @@ export function meetingDurationMs(meeting: Meeting) {
   return 60 * 60 * 1000;
 }
 
+function wallParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday"));
+  return {
+    weekday,
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+    second: Number(get("second")),
+  };
+}
+
+function zonedDate(year: number, month: number, day: number, hour: number, minute: number, timeZone: string) {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+  const asWall = wallParts(new Date(utcGuess), timeZone);
+  const wallAsUtc = Date.UTC(asWall.year, asWall.month - 1, asWall.day, asWall.hour, asWall.minute, 0);
+  return new Date(utcGuess + (utcGuess - wallAsUtc));
+}
+
 export function upcomingStarts(meeting: Meeting, count = 16): string[] {
   const start = new Date(meeting.startAt);
   const rec = meeting.recurrence || "none";
   if (rec === "none") return [start.toISOString()];
+  const tz = meeting.timezone || "America/New_York";
 
   if (rec === "monthly") {
-    const dates: Date[] = [new Date(start)];
-    for (let i = 1; i < count; i++) {
-      const d = new Date(start);
-      d.setMonth(d.getMonth() + i);
-      dates.push(d);
+    const base = wallParts(start, tz);
+    const dates: Date[] = [];
+    for (let i = 0; i < count; i++) {
+      const monthIndex = base.month - 1 + i;
+      const year = base.year + Math.floor(monthIndex / 12);
+      const month = (monthIndex % 12) + 1;
+      dates.push(zonedDate(year, month, base.day, base.hour, base.minute, tz));
     }
     return dates.map((d) => d.toISOString());
   }
 
   const allowed = new Set(parseWeekdays(meeting.recurrenceRule));
-  const hh = start.getHours();
-  const mm = start.getMinutes();
-  const ss = start.getSeconds();
+  const wall = wallParts(start, tz);
   const out: Date[] = [];
-  const cursor = new Date(start);
-  cursor.setHours(0, 0, 0, 0);
+  const cursor = zonedDate(wall.year, wall.month, wall.day, 0, 0, tz);
   let guard = 0;
   while (out.length < count && guard < 800) {
-    const d = new Date(cursor);
-    d.setHours(hh, mm, ss, 0);
-    if (d.getTime() >= start.getTime() - 60 * 1000 && allowed.has(d.getDay())) {
+    const c = wallParts(cursor, tz);
+    const d = zonedDate(c.year, c.month, c.day, wall.hour, wall.minute, tz);
+    const dw = wallParts(d, tz).weekday;
+    if (d.getTime() >= start.getTime() - 60 * 1000 && allowed.has(dw)) {
       out.push(d);
     }
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
     guard += 1;
   }
   return out.map((d) => d.toISOString());
