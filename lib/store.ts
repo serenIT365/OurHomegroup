@@ -106,6 +106,7 @@ const memTags: Tag[] = [
   { id: "tag_women", organizationId: "org_demo", name: "Women", createdAt: new Date().toISOString() },
   { id: "tag_veterans", organizationId: "org_demo", name: "Veterans", createdAt: new Date().toISOString() },
 ];
+const memMeetings: Meeting[] = [];
 const memMembers: UserProfile[] = [];
 const memAttendance: AttendanceRecord[] = [];
 
