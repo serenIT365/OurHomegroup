@@ -10,6 +10,8 @@ export default function TagPicker({
   onChange: (tags: string[]) => void;
 }) {
   const [tags, setTags] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/tags")
@@ -22,12 +24,29 @@ export default function TagPicker({
     onChange(value.includes(name) ? value.filter((t) => t !== name) : [...value, name]);
   }
 
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    const name = draft.trim();
+    if (!name) return;
+    const res = await fetch("/api/tags", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMsg(data.error || "Could not add tag");
+      return;
+    }
+    if (!tags.includes(name)) setTags((t) => [...t, name].sort());
+    if (!value.includes(name)) onChange([...value, name]);
+    setDraft("");
+    setMsg("");
+  }
+
   return (
     <div className="space-y-1.5">
       <span className="text-sm font-medium">Tags</span>
-      {tags.length === 0 && (
-        <p className="text-xs text-zinc-500">No tags yet. An admin can add tags under Admin.</p>
-      )}
       <div className="flex flex-wrap gap-2">
         {tags.map((name) => {
           const on = value.includes(name);
@@ -47,6 +66,18 @@ export default function TagPicker({
           );
         })}
       </div>
+      <form onSubmit={add} className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Add a tag"
+          className="flex-1 rounded-xl border border-zinc-700 bg-transparent px-3 py-1.5 text-xs"
+        />
+        <button type="submit" className="rounded-xl border border-zinc-700 px-3 py-1.5 text-xs">
+          Add
+        </button>
+      </form>
+      {msg && <p className="text-xs text-rose-400">{msg}</p>}
     </div>
   );
 }

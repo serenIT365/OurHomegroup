@@ -41,7 +41,7 @@ export default function AdminTagsManager({ initial }: { initial: string[] }) {
     <div className="rounded-2xl border border-zinc-800 bg-[#111820] p-4 space-y-3">
       <h3 className="font-semibold">Tags</h3>
       <p className="text-xs text-zinc-500">
-        Admins add and delete tags. Members can only assign existing tags to a meeting.
+        Anyone can add a tag. Only an admin can delete one.
       </p>
       <form onSubmit={add} className="flex gap-2">
         <input
