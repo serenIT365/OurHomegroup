@@ -331,6 +331,9 @@ export default function CreateMeetingForm({
             className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium">Capacity</span>
           <input
             type="number"
             min={1}
