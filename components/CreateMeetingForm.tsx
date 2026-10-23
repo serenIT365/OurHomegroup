@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TagPicker from "@/components/TagPicker";
 import { canBeChair } from "@/lib/roles";
+import type { MeetingProvider, UserProfile } from "@/lib/types";
 import WeekdayPicker from "@/components/WeekdayPicker";
 import { ALL_DAYS, encodeWeekdays } from "@/lib/weekdays";
 

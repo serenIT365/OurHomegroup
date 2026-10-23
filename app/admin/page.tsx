@@ -3,6 +3,7 @@ import Link from "next/link";
 import CreateMeetingForm from "@/components/CreateMeetingForm";
 import AdminMeetingsManager from "@/components/AdminMeetingsManager";
 import AdminTagsManager from "@/components/AdminTagsManager";
+import AdminUsersManager from "@/components/AdminUsersManager";
 
 export const dynamic = "force-dynamic";
 
